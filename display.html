@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>جدار الاتصال المجتمعي - Green Lungs</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js  "></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js  "></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js  "></script>
+    <!-- Fixed: Removed trailing spaces in CDN URLs -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
         * {
             margin: 0;
@@ -119,6 +120,14 @@
             border-radius: 50%;
             animation: pulse 1.5s infinite;
         }
+        
+        .placeholder-text {
+            position: absolute;
+            color: #2e7d32;
+            font-size: 24px;
+            text-align: center;
+            padding: 20px;
+        }
     </style>
 </head>
 <body>
@@ -137,6 +146,7 @@
 
         <div id="canvas-container">
             <canvas id="wordcloud"></canvas>
+            <div id="placeholder" class="placeholder-text">انتظروا المشاركات الأولى... 🌿</div>
         </div>
 
         <div class="qr-hint">
@@ -146,17 +156,16 @@
     </div>
 
     <script>
-        // Firebase Configuration - REPLACE WITH YOUR OWN
-  const firebaseConfig = {
-    apiKey: "AIzaSyBzx_qOvMD88VDUiDwA0a4pPiXw_pMiCk4",
-    authDomain: "greenlungswordcloud.firebaseapp.com",
-    databaseURL: "https://greenlungswordcloud-default-rtdb.firebaseio.com  ",
-    projectId: "greenlungswordcloud",
-    storageBucket: "greenlungswordcloud.firebasestorage.app",
-    messagingSenderId: "472160955042",
-    appId: "1:472160955042:web:45076a55b147a4738a45fb",
-    measurementId: "G-51TZ1276X0"
-  };
+        // Firebase Configuration - Fixed: Removed trailing spaces in databaseURL
+        const firebaseConfig = {
+            apiKey: "AIzaSyBzx_qOvMD88VDUiDwA0a4pPiXw_pMiCk4",
+            authDomain: "greenlungswordcloud.firebaseapp.com",
+            databaseURL: "https://greenlungswordcloud-default-rtdb.firebaseio.com",
+            projectId: "greenlungswordcloud",
+            storageBucket: "greenlungswordcloud.firebasestorage.app",
+            messagingSenderId: "472160955042",
+            appId: "1:472160955042:web:45076a55b147a4738a45fb"
+        };
 
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
@@ -164,75 +173,27 @@
         let wordList = [];
         const canvas = document.getElementById('wordcloud');
         const ctx = canvas.getContext('2d');
+        const placeholder = document.getElementById('placeholder');
 
         // Set canvas size
         function resizeCanvas() {
             const container = document.getElementById('canvas-container');
             canvas.width = container.clientWidth;
             canvas.height = container.clientHeight;
+            console.log('📐 Canvas resized:', canvas.width, 'x', canvas.height);
         }
-        resizeCanvas();
+        
+        // Initialize canvas after DOM loads
+        window.addEventListener('load', () => {
+            setTimeout(resizeCanvas, 100);
+        });
         window.addEventListener('resize', resizeCanvas);
 
-        // Create lung shape mask
-        function createLungMask() {
-            const maskCanvas = document.createElement('canvas');
-            maskCanvas.width = canvas.width;
-            maskCanvas.height = canvas.height;
-            const maskCtx = maskCanvas.getContext('2d');
-
-            const centerX = maskCanvas.width / 2;
-            const centerY = maskCanvas.height / 2;
-            const scale = Math.min(canvas.width, canvas.height) / 600;
-
-            // Draw left lung
-            maskCtx.beginPath();
-            maskCtx.moveTo(centerX - 50 * scale, centerY - 200 * scale);
-            maskCtx.bezierCurveTo(
-                centerX - 250 * scale, centerY - 200 * scale,
-                centerX - 280 * scale, centerY - 50 * scale,
-                centerX - 250 * scale, centerY + 150 * scale
-            );
-            maskCtx.bezierCurveTo(
-                centerX - 200 * scale, centerY + 200 * scale,
-                centerX - 100 * scale, centerY + 180 * scale,
-                centerX - 50 * scale, centerY + 100 * scale
-            );
-            maskCtx.bezierCurveTo(
-                centerX - 30 * scale, centerY + 50 * scale,
-                centerX - 40 * scale, centerY - 100 * scale,
-                centerX - 50 * scale, centerY - 200 * scale
-            );
-            maskCtx.closePath();
-            maskCtx.fillStyle = 'white';
-            maskCtx.fill();
-
-            // Draw right lung
-            maskCtx.beginPath();
-            maskCtx.moveTo(centerX + 50 * scale, centerY - 200 * scale);
-            maskCtx.bezierCurveTo(
-                centerX + 250 * scale, centerY - 200 * scale,
-                centerX + 280 * scale, centerY - 50 * scale,
-                centerX + 250 * scale, centerY + 150 * scale
-            );
-            maskCtx.bezierCurveTo(
-                centerX + 200 * scale, centerY + 200 * scale,
-                centerX + 100 * scale, centerY + 180 * scale,
-                centerX + 50 * scale, centerY + 100 * scale
-            );
-            maskCtx.bezierCurveTo(
-                centerX + 30 * scale, centerY + 50 * scale,
-                centerX + 40 * scale, centerY - 100 * scale,
-                centerX + 50 * scale, centerY - 200 * scale
-            );
-            maskCtx.closePath();
-            maskCtx.fillStyle = 'white';
-            maskCtx.fill();
-
-            return maskCanvas;
+        // Check if wordcloud2.js loaded
+        if (typeof WordCloud === 'undefined') {
+            console.error('❌ wordcloud2.js not loaded');
+            placeholder.textContent = 'خطأ في تحميل المكتبة، يرجى تحديث الصفحة';
         }
-
-        const lungMask = createLungMask();
 
         // Green color palette
         const greenColors = [
@@ -242,41 +203,75 @@
         ];
 
         function drawWordCloud() {
+            console.log('🎨 Drawing word cloud with', wordList.length, 'words');
+            
+            if (wordList.length === 0) {
+                placeholder.style.display = 'flex';
+                return;
+            }
+            
+            placeholder.style.display = 'none';
+            
+            // Format list for wordcloud2.js: [word, weight]
+            const list = wordList.map(w => [w.text, w.count]);
+            
             WordCloud(canvas, {
-                list: wordList.map(w => [w.text, w.count]),
-                gridSize: 8,
+                list: list,
+                // Font size settings - Updated for 32px minimum
+                minSize: 32,
+                maxSize: 85,
+                gridSize: 12,
                 weightFactor: function(size) {
-                    return Math.pow(size, 1.2) * (canvas.width / 800);
+                    return Math.pow(size, 1.15) * 3.5;
                 },
+                // Font settings for Arabic support
                 fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+                fontWeight: '600',
+                fontSize: 32,
+                // Color settings
                 color: function(word, weight) {
                     return greenColors[Math.floor(Math.random() * greenColors.length)];
                 },
-                rotateRatio: 0.3,
+                // Layout settings
+                rotateRatio: 0.2,
                 rotationSteps: 2,
                 backgroundColor: '#f1f8e9',
                 drawOutOfBound: false,
                 shrinkToFit: true,
-                abortThreshold: 3000,
-                ellipticity: 0.8,
-                // Use lung shape
-                shape: 'circle', // Will be overridden by mask
-                clearCanvas: true
+                abortThreshold: 6000,
+                ellipticity: 0.85,
+                shape: 'circle',
+                clearCanvas: true,
+                // RTL support for Arabic
+                textDirection: 'rtl',
+                // Animation
+                drawOutOfBound: false,
+                shrinkToFit: true
             });
+            
+            console.log('✅ WordCloud rendered');
         }
 
-        // Listen for real-time updates
+        // Listen for real-time updates with error handling
         database.ref('submissions').on('value', (snapshot) => {
+            console.log('📥 Data snapshot received');
+            
             const data = snapshot.val();
             const wordCount = {};
             let totalSubmissions = 0;
 
             if (data) {
-                Object.values(data).forEach(submission => {
+                console.log('📊 Processing', Object.keys(data).length, 'submissions');
+                
+                Object.values(data).forEach((submission) => {
+                    if (!submission || !submission.text) return;
+                    
                     const words = submission.text.toLowerCase().split(/\s+/);
                     words.forEach(word => {
-                        if (word.length > 2) {
-                            wordCount[word] = (wordCount[word] || 0) + 1;
+                        // Clean word: keep Arabic letters, English letters, numbers
+                        const cleanWord = word.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '');
+                        if (cleanWord.length > 2) {
+                            wordCount[cleanWord] = (wordCount[cleanWord] || 0) + 1;
                         }
                     });
                     totalSubmissions++;
@@ -288,8 +283,20 @@
                 count
             }));
 
+            // Update counter
             document.getElementById('count').textContent = totalSubmissions;
-            drawWordCloud();
+            
+            // Draw or clear
+            if (wordList.length > 0) {
+                drawWordCloud();
+            } else {
+                placeholder.style.display = 'flex';
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+            
+        }, (error) => {
+            console.error('❌ Firebase error:', error);
+            placeholder.textContent = 'خطأ في الاتصال: ' + error.message;
         });
     </script>
 </body>
