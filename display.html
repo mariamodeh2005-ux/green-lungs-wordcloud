@@ -192,24 +192,10 @@
         </div>
 
         <div id="wordcloud-container">
-            <!-- Lung outline background -->
             <svg class="lung-outline" viewBox="0 0 500 600">
-                <!-- Left Lung -->
-                <path d="M250 80 
-                         C180 80 120 150 120 280 
-                         C120 380 150 480 200 500 
-                         C220 510 235 480 245 450 
-                         L245 300 
-                         L245 80 Z"/>
-                <!-- Right Lung -->
-                <path d="M250 80 
-                         C320 80 380 150 380 280 
-                         C380 380 350 480 300 500 
-                         C280 510 265 480 255 450 
-                         L255 300 
-                         L255 80 Z"/>
+                <path d="M250 80 C180 80 120 150 120 280 C120 380 150 480 200 500 C220 510 235 480 245 450 L245 300 L245 80 Z"/>
+                <path d="M250 80 C320 80 380 150 380 280 C380 380 350 480 300 500 C280 510 265 480 255 450 L255 300 L255 80 Z"/>
             </svg>
-
             <div id="placeholder" class="placeholder-text">
                 انتظروا المشاركات الأولى... 🌿<br>
                 <span style="font-size: 18px; color: #558b2f;">امسحوا الكود وشاركونا رسائلكم!</span>
@@ -223,7 +209,6 @@
     </div>
 
     <script>
-        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyBzx_qOvMD88VDUiDwA0a4pPiXw_pMiCk4",
             authDomain: "greenlungswordcloud.firebaseapp.com",
@@ -241,15 +226,12 @@
         const placeholder = document.getElementById('placeholder');
         const countElement = document.getElementById('count');
 
-        // Green color palette
         const wordColors = [
             '#1b5e20', '#2e7d32', '#388e3c', '#43a047', 
-            '#4caf50', '#66bb6a', '#81c784', '#2e5a1c',
-            '#3d7426', '#4a8f3a', '#5cb85c', '#689f38'
+            '#4caf50', '#66bb6a', '#81c784', '#2e5a1c'
         ];
 
         function displayWordCloud(wordCounts) {
-            // Remove old words
             const oldWords = container.querySelectorAll('.word');
             oldWords.forEach(w => w.remove());
 
@@ -265,17 +247,11 @@
             const centerX = containerWidth / 2;
             const centerY = containerHeight / 2;
 
-            // Sort by frequency
             wordCounts.sort((a, b) => b.count - a.count);
-            
-            // Limit to top 60 words
             const displayWords = wordCounts.slice(0, 60);
             const maxCount = displayWords[0]?.count || 1;
 
-            // Different rotation angles
-            const angles = [0, 0, 0, 90, -90, 45, -45, 0];
-            
-            // Track placed words for collision detection
+            const angles = [0, 0, 0, 90, -90, 45, -45];
             const placedWords = [];
 
             displayWords.forEach((wordObj, index) => {
@@ -283,50 +259,65 @@
                 wordEl.className = 'word';
                 wordEl.textContent = wordObj.text;
                 
-                // Font size based on frequency (20px - 55px)
                 const minSize = 20;
                 const maxSize = 55;
                 const size = Math.round(minSize + ((wordObj.count / maxCount) * (maxSize - minSize)));
                 wordEl.style.fontSize = size + 'px';
-                
-                // Color
                 wordEl.style.background = wordColors[index % wordColors.length];
                 
-                // Rotation
                 const rotation = angles[index % angles.length];
                 wordEl.style.setProperty('--rotation', rotation + 'deg');
                 
-                // Calculate position in lung shape
                 let placed = false;
                 let attempts = 0;
+                const maxAttempts = 100;
                 
-                while (!placed && attempts < 50) {
-                    // Spiral pattern from center
-                    const angle = (index * 37 + attempts * 13) * (Math.PI / 180);
-                    const radius = 60 + (attempts * 12);
+                while (!placed && attempts < maxAttempts) {
+                    const angle = (index * 47 + attempts * 17) * (Math.PI / 180);
+                    const radius = 80 + (attempts * 15);
                     
                     const x = centerX + Math.cos(angle) * radius - (wordObj.text.length * size / 3);
-                    const y = centerY - 80 + Math.sin(angle) * radius * 1.2 - (size / 2);
+                    const y = centerY - 100 + Math.sin(angle) * radius * 1.3 - (size / 2);
                     
-                    // Check bounds
-                    if (x > 50 && x < containerWidth - 150 && y > 50 && y < containerHeight - 50) {
-                        wordEl.style.left = x + 'px';
-                        wordEl.style.top = y + 'px';
-                        wordEl.style.zIndex = (index + 1).toString();
-                        wordEl.style.animationDelay = (index * 0.05) + 's';
-                        wordEl.title = `${wordObj.text}: ${wordObj.count} مرات`;
+                    const wordRect = {
+                        x: x,
+                        y: y,
+                        width: wordObj.text.length * size * 0.7,
+                        height: size * 1.3
+                    };
+                    
+                    if (x > 100 && x < containerWidth - 150 && y > 80 && y < containerHeight - 80) {
+                        let collision = false;
+                        for (const placedWord of placedWords) {
+                            const padding = 10;
+                            if (!(wordRect.x + wordRect.width + padding < placedWord.x ||
+                                  wordRect.x - padding > placedWord.x + placedWord.width ||
+                                  wordRect.y + wordRect.height + padding < placedWord.y ||
+                                  wordRect.y - padding > placedWord.y + placedWord.height)) {
+                                collision = true;
+                                break;
+                            }
+                        }
                         
-                        container.appendChild(wordEl);
-                        placed = true;
+                        if (!collision) {
+                            wordEl.style.left = x + 'px';
+                            wordEl.style.top = y + 'px';
+                            wordEl.style.zIndex = (index + 1).toString();
+                            wordEl.style.animationDelay = (index * 0.05) + 's';
+                            wordEl.title = `${wordObj.text}: ${wordObj.count} مرات`;
+                            
+                            container.appendChild(wordEl);
+                            placedWords.push(wordRect);
+                            placed = true;
+                        }
                     }
                     
                     attempts++;
                 }
                 
-                // Fallback position
                 if (!placed) {
-                    const fallbackX = centerX + (Math.random() - 0.5) * 300;
-                    const fallbackY = centerY + (Math.random() - 0.5) * 300;
+                    const fallbackX = 150 + (index % 5) * 140;
+                    const fallbackY = 100 + Math.floor(index / 5) * 100;
                     wordEl.style.left = fallbackX + 'px';
                     wordEl.style.top = fallbackY + 'px';
                     container.appendChild(wordEl);
@@ -334,7 +325,6 @@
             });
         }
 
-        // Process submissions
         function processSubmissions(data) {
             const wordCount = {};
             let totalSubmissions = 0;
@@ -360,7 +350,6 @@
             };
         }
 
-        // Listen for Firebase
         database.ref('submissions').on('value', (snapshot) => {
             const data = snapshot.val();
             const result = processSubmissions(data);
