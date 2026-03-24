@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>جدار الاتصال المجتمعي - Green Lungs</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
@@ -43,7 +42,7 @@
             text-align: center;
         }
 
-        #canvas-container {
+        #wordcloud-container {
             position: relative;
             width: 90%;
             max-width: 1000px;
@@ -51,16 +50,21 @@
             background: white;
             border-radius: 20px;
             box-shadow: 0 10px 40px rgba(46, 125, 50, 0.2);
-            display: flex;
-            justify-content: center;
-            align-items: center;
             overflow: hidden;
         }
 
-        #wordcloud {
-            width: 100%;
-            height: 100%;
-            display: block;
+        .word {
+            position: absolute;
+            font-weight: bold;
+            cursor: default;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .word:hover {
+            transform: scale(1.2);
+            z-index: 1000;
         }
 
         .qr-hint {
@@ -124,11 +128,23 @@
         
         .placeholder-text {
             position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             color: #2e7d32;
-            font-size: 24px;
+            font-size: 28px;
             text-align: center;
             padding: 20px;
             z-index: 10;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.5); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .word-enter {
+            animation: fadeIn 0.5s ease-out;
         }
     </style>
 </head>
@@ -146,9 +162,9 @@
             <span>مباشر</span>
         </div>
 
-        <div id="canvas-container">
-            <canvas id="wordcloud"></canvas>
+        <div id="wordcloud-container">
             <div id="placeholder" class="placeholder-text">انتظروا المشاركات الأولى... 🌿</div>
+            <!-- Words will be added here as HTML elements -->
         </div>
 
         <div class="qr-hint">
@@ -172,31 +188,9 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        let wordList = [];
-        const canvas = document.getElementById('wordcloud');
-        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('wordcloud-container');
         const placeholder = document.getElementById('placeholder');
-        let isDrawing = false;
-
-        // Set canvas size - FIXED SIZE to prevent resizing issues
-        function resizeCanvas() {
-            const container = document.getElementById('canvas-container');
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
-            console.log('📐 Canvas resized:', canvas.width, 'x', canvas.height);
-        }
-        
-        // Initialize canvas once
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                resizeCanvas();
-                // Draw initial placeholder
-                ctx.fillStyle = '#2e7d32';
-                ctx.font = 'bold 24px Segoe UI';
-                ctx.textAlign = 'center';
-                ctx.fillText('انتظروا المشاركات الأولى... 🌿', canvas.width/2, canvas.height/2);
-            }, 200);
-        });
+        const countElement = document.getElementById('count');
 
         // Green color palette
         const greenColors = [
@@ -204,75 +198,60 @@
             '#4caf50', '#66bb6a', '#81c784', '#a5d6a7'
         ];
 
-        function drawWordCloud() {
-            if (isDrawing) {
-                console.log('⏳ Already drawing, skipping...');
+        // Simple word cloud layout algorithm
+        function createWordCloud(words) {
+            // Clear existing words (except placeholder)
+            const existingWords = container.querySelectorAll('.word');
+            existingWords.forEach(word => word.remove());
+
+            if (words.length === 0) {
+                placeholder.style.display = 'block';
                 return;
             }
-            
-            isDrawing = true;
-            console.log('🎨 Drawing word cloud with', wordList.length, 'words');
-            
-            if (wordList.length === 0) {
-                placeholder.style.display = 'flex';
-                isDrawing = false;
-                return;
-            }
-            
+
             placeholder.style.display = 'none';
-            
-            // Format list for wordcloud2.js
-            const list = wordList.map(w => [w.text, w.count]);
-            console.log('📝 Words to draw:', list);
-            
-            // Clear canvas first
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw word cloud with SIMPLIFIED settings
-            WordCloud(canvas, {
-                list: list,
-                // Font size - REDUCED to fit better
-                minSize: 24,
-                maxSize: 70,
-                gridSize: 8,
-                weightFactor: function(size) {
-                    return Math.pow(size, 1.1) * 2.5;
-                },
-                // Font
-                fontFamily: 'Segoe UI, Tahoma, sans-serif',
-                fontWeight: 'bold',
-                // Color
-                color: function(word, weight) {
-                    const index = Math.floor(Math.random() * greenColors.length);
-                    return greenColors[index];
-                },
-                // Layout
-                rotateRatio: 0.1,  // Less rotation for better Arabic display
-                rotationSteps: 2,
-                backgroundColor: '#ffffff',
-                drawOutOfBound: false,
-                shrinkToFit: true,
-                abortThreshold: 8000,
-                ellipticity: 0.9,
-                clearCanvas: true,
-                // Animation
-                drawOutOfBound: false
-            }, function(instance) {
-                console.log('✅ WordCloud callback - rendering complete');
-                isDrawing = false;
+
+            // Sort words by count (most frequent first)
+            words.sort((a, b) => b.count - a.count);
+
+            // Container dimensions
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+            const centerX = containerWidth / 2;
+            const centerY = containerHeight / 2;
+
+            // Create word elements
+            words.forEach((wordObj, index) => {
+                const wordEl = document.createElement('div');
+                wordEl.className = 'word word-enter';
+                wordEl.textContent = wordObj.text;
                 
-                // Verify something was drawn
-                if (instance.grid.length === 0) {
-                    console.warn('⚠️ No words were placed on the grid');
-                    // Try drawing simple text as fallback
-                    ctx.fillStyle = '#2e7d32';
-                    ctx.font = 'bold 28px Segoe UI';
-                    ctx.textAlign = 'center';
-                    wordList.slice(0, 3).forEach((w, i) => {
-                        ctx.fillText(w.text + ' (' + w.count + ')', canvas.width/2, canvas.height/2 + (i * 40));
-                    });
-                }
+                // Calculate font size based on frequency (32px - 70px)
+                const minSize = 32;
+                const maxSize = 70;
+                const maxCount = words[0].count;
+                const size = minSize + ((wordObj.count / maxCount) * (maxSize - minSize));
+                
+                wordEl.style.fontSize = size + 'px';
+                wordEl.style.color = greenColors[Math.floor(Math.random() * greenColors.length)];
+                
+                // Position in a spiral pattern from center
+                const angle = (index * 137.5) * (Math.PI / 180); // Golden angle
+                const radius = 50 + (index * 35);
+                
+                const x = centerX + (Math.cos(angle) * radius) - (wordObj.text.length * size / 4);
+                const y = centerY + (Math.sin(angle) * radius) - (size / 2);
+                
+                wordEl.style.left = Math.max(10, Math.min(x, containerWidth - (wordObj.text.length * size) - 10)) + 'px';
+                wordEl.style.top = Math.max(10, Math.min(y, containerHeight - size - 10)) + 'px';
+                
+                // Add title tooltip
+                wordEl.title = `${wordObj.text}: ${wordObj.count} مرة`;
+                
+                container.appendChild(wordEl);
             });
+
+            console.log('✅ Word cloud created with', words.length, 'words');
         }
 
         // Listen for real-time updates
@@ -300,23 +279,30 @@
                 });
             }
 
-            wordList = Object.entries(wordCount).map(([text, count]) => ({
+            const wordList = Object.entries(wordCount).map(([text, count]) => ({
                 text,
                 count
             }));
 
-            document.getElementById('count').textContent = totalSubmissions;
+            countElement.textContent = totalSubmissions;
             
-            if (wordList.length > 0) {
-                drawWordCloud();
-            } else {
-                placeholder.style.display = 'flex';
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-            }
+            console.log('📝 Word list:', wordList);
+            createWordCloud(wordList);
             
         }, (error) => {
             console.error('❌ Firebase error:', error);
             placeholder.textContent = 'خطأ في الاتصال: ' + error.message;
+        });
+
+        // Handle window resize
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                console.log('📐 Window resized, refreshing word cloud...');
+                // Trigger a refresh by re-reading from Firebase
+                database.ref('submissions').once('value');
+            }, 300);
         });
     </script>
 </body>
