@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>جدار الاتصال المجتمعي - Green Lungs</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js  "></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js  "></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js  "></script>
     <style>
         * {
             margin: 0;
@@ -147,15 +147,16 @@
 
     <script>
         // Firebase Configuration - REPLACE WITH YOUR OWN
-const firebaseConfig = {
-  apiKey: "AIzaSyBzx_qOvMD88VDUiDwA0a4pPiXw_pMiCk4",
-  authDomain: "greenlungswordcloud.firebaseapp.com",
-  databaseURL: "https://greenlungswordcloud-default-rtdb.firebaseio.com", 
-  projectId: "greenlungswordcloud",
-  storageBucket: "greenlungswordcloud.firebasestorage.app",
-  messagingSenderId: "472160955042",
-  appId: "1:472160955042:web:45076a55b147a4738a45fb"
-};
+  const firebaseConfig = {
+    apiKey: "AIzaSyBzx_qOvMD88VDUiDwA0a4pPiXw_pMiCk4",
+    authDomain: "greenlungswordcloud.firebaseapp.com",
+    databaseURL: "https://greenlungswordcloud-default-rtdb.firebaseio.com  ",
+    projectId: "greenlungswordcloud",
+    storageBucket: "greenlungswordcloud.firebasestorage.app",
+    messagingSenderId: "472160955042",
+    appId: "1:472160955042:web:45076a55b147a4738a45fb",
+    measurementId: "G-51TZ1276X0"
+  };
 
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
@@ -239,86 +240,57 @@ const firebaseConfig = {
             '#4caf50', '#66bb6a', '#81c784', '#a5d6a7',
             '#2e5a1c', '#3d7426', '#4a8f3a', '#5cb85c'
         ];
+
         function drawWordCloud() {
-    WordCloud(canvas, {
-        list: wordList.map(w => [w.text, w.count]),
-        gridSize: 10,
-        minSize: 32,
-        maxSize: 85,
-        weightFactor: function(size) {
-            return Math.pow(size, 1.15) * 3.5;
-        },
-        fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
-        fontSize: 32,
-        fontWeight: '600',
-        color: function(word, weight) {
-            return greenColors[Math.floor(Math.random() * greenColors.length)];
-        },
-        rotateRatio: 0.25,
-        rotationSteps: 2,
-        backgroundColor: '#f1f8e9',
-        drawOutOfBound: false,
-        shrinkToFit: true,
-        abortThreshold: 6000,
-        ellipticity: 0.85,
-        shape: 'circle',
-        clearCanvas: true,
-        textDirection: 'rtl'
-    });
-}
-
-// Listen for real-time updates WITH ERROR HANDLING
-const submissionsRef = database.ref('submissions');
-
-submissionsRef.on('value', (snapshot) => {
-    console.log('📥 Data received:', snapshot.val());  // Debug log
-    
-    const data = snapshot.val();
-    const wordCount = {};
-    let totalSubmissions = 0;
-
-    if (data) {
-        console.log('📊 Processing', Object.keys(data).length, 'submissions');
-        
-        Object.values(data).forEach((submission, index) => {
-            console.log(`Submission ${index + 1}:`, submission.text);
-            
-            const words = submission.text.toLowerCase().split(/\s+/);
-            words.forEach(word => {
-                // Clean Arabic/English words, keep only meaningful ones
-                const cleanWord = word.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '');
-                if (cleanWord.length > 2) {
-                    wordCount[cleanWord] = (wordCount[cleanWord] || 0) + 1;
-                }
+            WordCloud(canvas, {
+                list: wordList.map(w => [w.text, w.count]),
+                gridSize: 8,
+                weightFactor: function(size) {
+                    return Math.pow(size, 1.2) * (canvas.width / 800);
+                },
+                fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+                color: function(word, weight) {
+                    return greenColors[Math.floor(Math.random() * greenColors.length)];
+                },
+                rotateRatio: 0.3,
+                rotationSteps: 2,
+                backgroundColor: '#f1f8e9',
+                drawOutOfBound: false,
+                shrinkToFit: true,
+                abortThreshold: 3000,
+                ellipticity: 0.8,
+                // Use lung shape
+                shape: 'circle', // Will be overridden by mask
+                clearCanvas: true
             });
-            totalSubmissions++;
+        }
+
+        // Listen for real-time updates
+        database.ref('submissions').on('value', (snapshot) => {
+            const data = snapshot.val();
+            const wordCount = {};
+            let totalSubmissions = 0;
+
+            if (data) {
+                Object.values(data).forEach(submission => {
+                    const words = submission.text.toLowerCase().split(/\s+/);
+                    words.forEach(word => {
+                        if (word.length > 2) {
+                            wordCount[word] = (wordCount[word] || 0) + 1;
+                        }
+                    });
+                    totalSubmissions++;
+                });
+            }
+
+            wordList = Object.entries(wordCount).map(([text, count]) => ({
+                text,
+                count
+            }));
+
+            document.getElementById('count').textContent = totalSubmissions;
+            drawWordCloud();
         });
-    } else {
-        console.log('⚠️ No data found in submissions');
-    }
-
-    wordList = Object.entries(wordCount).map(([text, count]) => ({
-        text,
-        count
-    }));
-
-    console.log('🎨 Word list for cloud:', wordList.slice(0, 10)); // Show first 10
-    document.getElementById('count').textContent = totalSubmissions;
-    
-    if (wordList.length > 0) {
-        drawWordCloud();
-    } else {
-        console.log('⚠️ No words to display');
-        // Show placeholder message
-        ctx.fillStyle = '#2e7d32';
-        ctx.font = '24px Segoe UI';
-        ctx.textAlign = 'center';
-        ctx.fillText('انتظروا المشاركات الأولى... 🌿', canvas.width/2, canvas.height/2);
-    }
-}, (error) => {
-    console.error('❌ Firebase error:', error);
-    alert('Error loading data: ' + error.message);
-});
     </script>
 </body>
 </html>
