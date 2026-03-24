@@ -147,16 +147,15 @@
 
     <script>
         // Firebase Configuration - REPLACE WITH YOUR OWN
-  const firebaseConfig = {
-    apiKey: "AIzaSyBzx_qOvMD88VDUiDwA0a4pPiXw_pMiCk4",
-    authDomain: "greenlungswordcloud.firebaseapp.com",
-    databaseURL: "https://greenlungswordcloud-default-rtdb.firebaseio.com",
-    projectId: "greenlungswordcloud",
-    storageBucket: "greenlungswordcloud.firebasestorage.app",
-    messagingSenderId: "472160955042",
-    appId: "1:472160955042:web:45076a55b147a4738a45fb",
-    measurementId: "G-51TZ1276X0"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyBzx_qOvMD88VDUiDwA0a4pPiXw_pMiCk4",
+  authDomain: "greenlungswordcloud.firebaseapp.com",
+  databaseURL: "https://greenlungswordcloud-default-rtdb.firebaseio.com", 
+  projectId: "greenlungswordcloud",
+  storageBucket: "greenlungswordcloud.firebasestorage.app",
+  messagingSenderId: "472160955042",
+  appId: "1:472160955042:web:45076a55b147a4738a45fb"
+};
 
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
@@ -268,32 +267,58 @@
     });
 }
 
-        // Listen for real-time updates
-        database.ref('submissions').on('value', (snapshot) => {
-            const data = snapshot.val();
-            const wordCount = {};
-            let totalSubmissions = 0;
+// Listen for real-time updates WITH ERROR HANDLING
+const submissionsRef = database.ref('submissions');
 
-            if (data) {
-                Object.values(data).forEach(submission => {
-                    const words = submission.text.toLowerCase().split(/\s+/);
-                    words.forEach(word => {
-                        if (word.length > 2) {
-                            wordCount[word] = (wordCount[word] || 0) + 1;
-                        }
-                    });
-                    totalSubmissions++;
-                });
-            }
+submissionsRef.on('value', (snapshot) => {
+    console.log('📥 Data received:', snapshot.val());  // Debug log
+    
+    const data = snapshot.val();
+    const wordCount = {};
+    let totalSubmissions = 0;
 
-            wordList = Object.entries(wordCount).map(([text, count]) => ({
-                text,
-                count
-            }));
-
-            document.getElementById('count').textContent = totalSubmissions;
-            drawWordCloud();
+    if (data) {
+        console.log('📊 Processing', Object.keys(data).length, 'submissions');
+        
+        Object.values(data).forEach((submission, index) => {
+            console.log(`Submission ${index + 1}:`, submission.text);
+            
+            const words = submission.text.toLowerCase().split(/\s+/);
+            words.forEach(word => {
+                // Clean Arabic/English words, keep only meaningful ones
+                const cleanWord = word.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '');
+                if (cleanWord.length > 2) {
+                    wordCount[cleanWord] = (wordCount[cleanWord] || 0) + 1;
+                }
+            });
+            totalSubmissions++;
         });
+    } else {
+        console.log('⚠️ No data found in submissions');
+    }
+
+    wordList = Object.entries(wordCount).map(([text, count]) => ({
+        text,
+        count
+    }));
+
+    console.log('🎨 Word list for cloud:', wordList.slice(0, 10)); // Show first 10
+    document.getElementById('count').textContent = totalSubmissions;
+    
+    if (wordList.length > 0) {
+        drawWordCloud();
+    } else {
+        console.log('⚠️ No words to display');
+        // Show placeholder message
+        ctx.fillStyle = '#2e7d32';
+        ctx.font = '24px Segoe UI';
+        ctx.textAlign = 'center';
+        ctx.fillText('انتظروا المشاركات الأولى... 🌿', canvas.width/2, canvas.height/2);
+    }
+}, (error) => {
+    console.error('❌ Firebase error:', error);
+    alert('Error loading data: ' + error.message);
+});
     </script>
 </body>
 </html>
