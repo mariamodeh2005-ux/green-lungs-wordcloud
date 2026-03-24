@@ -205,11 +205,11 @@
             try {
                 // Save to Firebase
                 await database.ref('submissions').push({
-                    text: message,
+                    text: message,                    // Must be "text" field
                     timestamp: firebase.database.ServerValue.TIMESTAMP,
-                    userAgent: navigator.userAgent
+                    lang: document.documentElement.lang || 'ar'
                 });
-
+                
                 // Show success message
                 successMessage.style.display = 'block';
                 form.style.display = 'none';
