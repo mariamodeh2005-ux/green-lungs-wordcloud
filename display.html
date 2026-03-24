@@ -53,35 +53,50 @@
             overflow: hidden;
         }
 
+        /* Lung shape container */
+        .lung-shape {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 500px;
+            height: 600px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
         .message {
             position: absolute;
             font-weight: bold;
-            padding: 10px 20px;
-            border-radius: 25px;
-            background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+            padding: 6px 12px;
+            border-radius: 15px;
             color: white;
             cursor: default;
-            box-shadow: 0 4px 15px rgba(46, 125, 50, 0.3);
-            animation: floatIn 0.6s ease-out;
-            max-width: 300px;
+            box-shadow: 0 2px 10px rgba(46, 125, 50, 0.3);
+            animation: floatIn 0.5s ease-out;
+            max-width: 180px;
             text-align: center;
-            transition: transform 0.3s ease;
+            transition: all 0.3s ease;
+            z-index: 10;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .message:hover {
-            transform: scale(1.1);
+            transform: scale(1.15);
             z-index: 1000;
-            box-shadow: 0 6px 25px rgba(46, 125, 50, 0.5);
+            box-shadow: 0 4px 20px rgba(46, 125, 50, 0.5);
         }
 
         @keyframes floatIn {
             0% { 
                 opacity: 0; 
-                transform: scale(0.5) translateY(20px); 
+                transform: scale(0.5); 
             }
             100% { 
                 opacity: 1; 
-                transform: scale(1) translateY(0); 
+                transform: scale(1); 
             }
         }
 
@@ -99,6 +114,7 @@
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             text-align: center;
+            z-index: 100;
         }
 
         .qr-hint img {
@@ -121,6 +137,7 @@
             padding: 15px 25px;
             border-radius: 10px;
             font-size: 1.2em;
+            z-index: 100;
         }
 
         .live-indicator {
@@ -134,6 +151,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            z-index: 100;
         }
 
         .live-dot {
@@ -156,14 +174,21 @@
             z-index: 10;
         }
 
-        .lung-shape {
+        /* Lung outline for visual guide */
+        .lung-outline {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            opacity: 0.1;
+            width: 500px;
+            height: 600px;
+            opacity: 0.15;
             pointer-events: none;
             z-index: 0;
+        }
+
+        .lung-outline path {
+            fill: #2e7d32;
         }
 
         #debug-info {
@@ -173,9 +198,9 @@
             background: rgba(0,0,0,0.8);
             color: #0f0;
             padding: 10px;
-            font-size: 12px;
+            font-size: 11px;
             border-radius: 5px;
-            max-width: 300px;
+            max-width: 280px;
             z-index: 9999;
         }
     </style>
@@ -195,14 +220,30 @@
         </div>
 
         <div id="wordcloud-container">
-            <!-- Lung background shape -->
-            <svg class="lung-shape" width="400" height="500" viewBox="0 0 400 500">
-                <path d="M200 50 C100 50 50 150 50 250 C50 350 100 400 150 380 C170 370 180 340 190 320 C195 340 205 340 210 320 C220 340 230 370 250 380 C300 400 350 350 350 250 C350 150 300 50 200 50 Z" 
-                      fill="#2e7d32"/>
+            <!-- Lung outline background -->
+            <svg class="lung-outline" viewBox="0 0 500 600">
+                <!-- Left Lung -->
+                <path d="M250 80 
+                         C180 80 120 150 120 280 
+                         C120 380 150 480 200 500 
+                         C220 510 235 480 245 450 
+                         L245 300 
+                         L245 80 Z"/>
+                <!-- Right Lung -->
+                <path d="M250 80 
+                         C320 80 380 150 380 280 
+                         C380 380 350 480 300 500 
+                         C280 510 265 480 255 450 
+                         L255 300 
+                         L255 80 Z"/>
             </svg>
+
+            <div id="placeholder" class="placeholder-text">
+                انتظروا المشاركات الأولى... 🌿<br>
+                <span style="font-size: 18px; color: #558b2f;">امسحوا الكود وشاركونا رسائلكم!</span>
+            </div>
             
-            <div id="placeholder" class="placeholder-text">انتظروا المشاركات الأولى... 🌿</div>
-            <!-- Full messages will be added here -->
+            <!-- Messages will be positioned inside lung shape -->
         </div>
 
         <div class="qr-hint">
@@ -233,18 +274,34 @@
         const countElement = document.getElementById('count');
         const debugInfo = document.getElementById('debug-info');
 
-        // Green color variations for message bubbles
+        // Green color palette for message bubbles
         const messageColors = [
-            'linear-gradient(135deg, #4caf50 0%, #2e7d32 100%)',
-            'linear-gradient(135deg, #66bb6a 0%, #388e3c 100%)',
-            'linear-gradient(135deg, #81c784 0%, #43a047 100%)',
-            'linear-gradient(135deg, #4caf50 0%, #1b5e20 100%)',
-            'linear-gradient(135deg, #66bb6a 0%, #2e5a1c 100%)'
+            '#1b5e20', '#2e7d32', '#388e3c', '#43a047', 
+            '#4caf50', '#66bb6a', '#2e5a1c', '#3d7426'
         ];
 
         function updateDebug(msg) {
             debugInfo.textContent = msg;
             console.log('🔧', msg);
+        }
+
+        // Check if point is inside lung shape
+        function isInsideLung(x, y, containerWidth, containerHeight) {
+            const centerX = containerWidth / 2;
+            const centerY = containerHeight / 2;
+            const lungWidth = 500;
+            const lungHeight = 600;
+            
+            // Normalize coordinates
+            const nx = (x - centerX) / (lungWidth / 2);
+            const ny = (y - centerY) / (lungHeight / 2);
+            
+            // Simplified lung boundary check
+            const topY = -0.8;
+            const bottomY = 0.8;
+            const maxWidth = Math.max(0.3, 1 - Math.abs(ny) * 0.5);
+            
+            return Math.abs(nx) <= maxWidth && ny >= topY && ny <= bottomY;
         }
 
         function displayMessages(messages) {
@@ -261,48 +318,64 @@
             }
 
             placeholder.style.display = 'none';
-            updateDebug(`عرض ${messages.length} رسالة كاملة`);
+            updateDebug(`عرض ${messages.length} رسالة داخل شكل الرئتين`);
 
             const containerWidth = container.clientWidth;
             const containerHeight = container.clientHeight;
+            const centerX = containerWidth / 2;
+            const centerY = containerHeight / 2;
 
-            // Show last 20 messages (most recent first)
-            const recentMessages = messages.slice(-20).reverse();
+            // Show all messages (up to 50 for performance)
+            const displayMessages = messages.slice(-50).reverse();
             
-            // Position messages in a cloud pattern within lung shape
-            recentMessages.forEach((msg, index) => {
+            // Pre-defined positions within lung shape (left and right lung)
+            const positions = [];
+            
+            // Left lung positions
+            for (let i = 0; i < 25; i++) {
+                const angle = 150 + (i * 8);
+                const radius = 80 + (i % 5) * 35;
+                positions.push({
+                    x: centerX - 60 + Math.cos(angle * Math.PI / 180) * radius,
+                    y: centerY - 100 + Math.sin(angle * Math.PI / 180) * radius,
+                    lung: 'left'
+                });
+            }
+            
+            // Right lung positions
+            for (let i = 0; i < 25; i++) {
+                const angle = 30 + (i * 8);
+                const radius = 80 + (i % 5) * 35;
+                positions.push({
+                    x: centerX + 60 + Math.cos(angle * Math.PI / 180) * radius,
+                    y: centerY - 100 + Math.sin(angle * Math.PI / 180) * radius,
+                    lung: 'right'
+                });
+            }
+
+            displayMessages.forEach((msg, index) => {
                 const messageEl = document.createElement('div');
                 messageEl.className = 'message';
                 messageEl.textContent = msg.text;
                 
-                // Font size based on position (newer = slightly larger)
-                const baseSize = 20;
-                const maxSize = 32;
-                const size = baseSize + ((index / recentMessages.length) * (maxSize - baseSize));
+                // Font size based on position (varied for visual interest)
+                const sizes = [14, 16, 18, 20, 22, 24];
+                const size = sizes[index % sizes.length];
                 messageEl.style.fontSize = size + 'px';
                 
                 // Color variation
                 messageEl.style.background = messageColors[index % messageColors.length];
                 
-                // Position in a spiral/cloud pattern
-                const angle = (index * 75) * (Math.PI / 180);
-                const radius = 80 + (index * 25);
+                // Get position from pre-defined lung positions
+                const pos = positions[index % positions.length];
+                messageEl.style.left = pos.x + 'px';
+                messageEl.style.top = pos.y + 'px';
                 
-                const centerX = containerWidth / 2;
-                const centerY = containerHeight / 2;
-                
-                const x = centerX + (Math.cos(angle) * radius) - 100;
-                const y = centerY + (Math.sin(angle) * radius) - 25;
-                
-                // Keep within bounds
-                messageEl.style.left = Math.max(20, Math.min(x, containerWidth - 220)) + 'px';
-                messageEl.style.top = Math.max(20, Math.min(y, containerHeight - 60)) + 'px';
-                
-                // Z-index so newer messages appear on top
+                // Z-index so messages don't overlap too much
                 messageEl.style.zIndex = (index + 1).toString();
                 
                 // Add animation delay for staggered effect
-                messageEl.style.animationDelay = (index * 0.1) + 's';
+                messageEl.style.animationDelay = (index * 0.05) + 's';
                 
                 // Add timestamp tooltip
                 if (msg.timestamp) {
@@ -312,10 +385,10 @@
                 
                 container.appendChild(messageEl);
                 
-                updateDebug(`✅ رسالة ${index + 1}: ${msg.text.substring(0, 20)}...`);
+                updateDebug(`✅ رسالة ${index + 1}: ${msg.text.substring(0, 15)}...`);
             });
 
-            updateDebug(`✅ تم عرض ${recentMessages.length} رسالة بنجاح`);
+            updateDebug(`✅ تم عرض ${displayMessages.length} رسالة بنجاح في شكل الرئتين`);
         }
 
         // Listen for Firebase data
@@ -338,7 +411,7 @@
                         return;
                     }
                     
-                    // Store complete message (NOT breaking into words)
+                    // Store complete message
                     messages.push({
                         text: submission.text.trim(),
                         timestamp: submission.timestamp
