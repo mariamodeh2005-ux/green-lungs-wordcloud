@@ -242,27 +242,33 @@
         ];
 
         function drawWordCloud() {
-            WordCloud(canvas, {
-                list: wordList.map(w => [w.text, w.count]),
-                gridSize: 8,
-                weightFactor: function(size) {
-                    return Math.pow(size, 1.2) * (canvas.width / 800);
-                },
-                fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
-                color: function(word, weight) {
-                    return greenColors[Math.floor(Math.random() * greenColors.length)];
-                },
-                rotateRatio: 0.3,
-                rotationSteps: 2,
-                backgroundColor: '#f1f8e9',
-                drawOutOfBound: false,
-                shrinkToFit: true,
-                abortThreshold: 3000,
-                ellipticity: 0.8,
-                // Use lung shape
-                shape: 'circle', // Will be overridden by mask
-                clearCanvas: true
-            });
+    WordCloud(canvas, {
+        list: wordList.map(w => [w.text, w.count]),
+        gridSize: 8,
+        
+        // FONT SIZE SETTINGS - UPDATED
+        minSize: 32,              // Minimum font size in pixels
+        maxSize: 80,              // Maximum font size for frequent words
+        weightFactor: function(size) {
+            return Math.pow(size, 1.1) * 3;  // Adjust multiplier for scaling
+        },
+        
+        fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+        fontSize: 32,             // Base font size fallback
+        color: function(word, weight) {
+            return greenColors[Math.floor(Math.random() * greenColors.length)];
+        },
+        rotateRatio: 0.3,
+        rotationSteps: 2,
+        backgroundColor: '#f1f8e9',
+        drawOutOfBound: false,
+        shrinkToFit: true,
+        abortThreshold: 5000,     // Increased for more words to render
+        ellipticity: 0.8,
+        shape: 'circle',
+        clearCanvas: true
+    });
+}
         }
 
         // Listen for real-time updates
