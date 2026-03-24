@@ -53,50 +53,34 @@
             overflow: hidden;
         }
 
-        /* Lung shape container */
-        .lung-shape {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 500px;
-            height: 600px;
-            pointer-events: none;
-            z-index: 1;
-        }
-
-        .message {
+        .word {
             position: absolute;
             font-weight: bold;
-            padding: 6px 12px;
-            border-radius: 15px;
             color: white;
             cursor: default;
-            box-shadow: 0 2px 10px rgba(46, 125, 50, 0.3);
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
             animation: floatIn 0.5s ease-out;
-            max-width: 180px;
-            text-align: center;
             transition: all 0.3s ease;
             z-index: 10;
             white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            padding: 2px 5px;
+            border-radius: 3px;
         }
 
-        .message:hover {
-            transform: scale(1.15);
+        .word:hover {
+            transform: scale(1.3);
             z-index: 1000;
-            box-shadow: 0 4px 20px rgba(46, 125, 50, 0.5);
+            text-shadow: 2px 2px 5px rgba(0,0,0,0.5);
         }
 
         @keyframes floatIn {
             0% { 
                 opacity: 0; 
-                transform: scale(0.5); 
+                transform: scale(0.5) rotate(0deg); 
             }
             100% { 
                 opacity: 1; 
-                transform: scale(1); 
+                transform: scale(1) rotate(var(--rotation)); 
             }
         }
 
@@ -174,7 +158,6 @@
             z-index: 10;
         }
 
-        /* Lung outline for visual guide */
         .lung-outline {
             position: absolute;
             top: 50%;
@@ -182,7 +165,7 @@
             transform: translate(-50%, -50%);
             width: 500px;
             height: 600px;
-            opacity: 0.15;
+            opacity: 0.12;
             pointer-events: none;
             z-index: 0;
         }
@@ -242,12 +225,10 @@
                 انتظروا المشاركات الأولى... 🌿<br>
                 <span style="font-size: 18px; color: #558b2f;">امسحوا الكود وشاركونا رسائلكم!</span>
             </div>
-            
-            <!-- Messages will be positioned inside lung shape -->
         </div>
 
         <div class="qr-hint">
-            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAYAAAB5fY51AAAACXBIWXMAAA7EAAAOxAGVKw4bAAADZ0lEQVR4nO3dQW7bMBBA0eH9D+0uugiQRZBFkEWR ..." alt="QR Code">
+            <img src="image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAYAAAB5fY51AAAACXBIWXMAAA7EAAAOxAGVKw4bAAADZ0lEQVR4nO3dQW7bMBBA0eH9D+0uugiQRZBFkEWR ..." alt="QR Code">
             <p>امسحوا الكود وشاركونا كلماتكم!</p>
         </div>
     </div>
@@ -274,10 +255,11 @@
         const countElement = document.getElementById('count');
         const debugInfo = document.getElementById('debug-info');
 
-        // Green color palette for message bubbles
-        const messageColors = [
+        // Green color palette - various shades
+        const wordColors = [
             '#1b5e20', '#2e7d32', '#388e3c', '#43a047', 
-            '#4caf50', '#66bb6a', '#2e5a1c', '#3d7426'
+            '#4caf50', '#66bb6a', '#81c784', '#2e5a1c',
+            '#3d7426', '#4a8f3a', '#5cb85c', '#689f38'
         ];
 
         function updateDebug(msg) {
@@ -286,157 +268,203 @@
         }
 
         // Check if point is inside lung shape
-        function isInsideLung(x, y, containerWidth, containerHeight) {
-            const centerX = containerWidth / 2;
-            const centerY = containerHeight / 2;
-            const lungWidth = 500;
-            const lungHeight = 600;
+        function isInsideLung(x, y, centerX, centerY) {
+            const lungWidth = 250;
+            const lungHeight = 420;
             
-            // Normalize coordinates
-            const nx = (x - centerX) / (lungWidth / 2);
-            const ny = (y - centerY) / (lungHeight / 2);
+            const dx = Math.abs(x - centerX);
+            const dy = y - (centerY - 100);
             
-            // Simplified lung boundary check
-            const topY = -0.8;
-            const bottomY = 0.8;
-            const maxWidth = Math.max(0.3, 1 - Math.abs(ny) * 0.5);
+            // Elliptical lung boundary check
+            const leftLungCenter = centerX - 100;
+            const rightLungCenter = centerX + 100;
             
-            return Math.abs(nx) <= maxWidth && ny >= topY && ny <= bottomY;
+            // Left lung
+            const leftDx = Math.abs(x - leftLungCenter);
+            const leftIn = (Math.pow(leftDx / 120, 2) + Math.pow(dy / 200, 2)) <= 1;
+            
+            // Right lung
+            const rightDx = Math.abs(x - rightLungCenter);
+            const rightIn = (Math.pow(rightDx / 120, 2) + Math.pow(dy / 200, 2)) <= 1;
+            
+            return leftIn || rightIn;
         }
 
-        function displayMessages(messages) {
-            updateDebug(`عرض ${messages.length} رسالة`);
-            
-            // Remove old messages
-            const oldMessages = container.querySelectorAll('.message');
-            oldMessages.forEach(m => m.remove());
+        // Check collision between two words
+        function checkCollision(word1, word2) {
+            const padding = 8;
+            return !(
+                word1.x + word1.width + padding < word2.x ||
+                word1.x - padding > word2.x + word2.width ||
+                word1.y + word1.height + padding < word2.y ||
+                word1.y - padding > word2.y + word2.height
+            );
+        }
 
-            if (messages.length === 0) {
+        function displayWordCloud(wordCounts) {
+            updateDebug(`عرض ${wordCounts.length} كلمة`);
+            
+            // Remove old words
+            const oldWords = container.querySelectorAll('.word');
+            oldWords.forEach(w => w.remove());
+
+            if (wordCounts.length === 0) {
                 placeholder.style.display = 'block';
-                updateDebug('لا توجد رسائل - عرض الرسالة الافتراضية');
+                updateDebug('لا توجد كلمات');
                 return;
             }
 
             placeholder.style.display = 'none';
-            updateDebug(`عرض ${messages.length} رسالة داخل شكل الرئتين`);
+            updateDebug(`توزيع ${wordCounts.length} كلمة في شكل الرئتين`);
 
             const containerWidth = container.clientWidth;
             const containerHeight = container.clientHeight;
             const centerX = containerWidth / 2;
             const centerY = containerHeight / 2;
 
-            // Show all messages (up to 50 for performance)
-            const displayMessages = messages.slice(-50).reverse();
+            // Sort words by frequency (most frequent = largest)
+            wordCounts.sort((a, b) => b.count - a.count);
             
-            // Pre-defined positions within lung shape (left and right lung)
-            const positions = [];
-            
-            // Left lung positions
-            for (let i = 0; i < 25; i++) {
-                const angle = 150 + (i * 8);
-                const radius = 80 + (i % 5) * 35;
-                positions.push({
-                    x: centerX - 60 + Math.cos(angle * Math.PI / 180) * radius,
-                    y: centerY - 100 + Math.sin(angle * Math.PI / 180) * radius,
-                    lung: 'left'
-                });
-            }
-            
-            // Right lung positions
-            for (let i = 0; i < 25; i++) {
-                const angle = 30 + (i * 8);
-                const radius = 80 + (i % 5) * 35;
-                positions.push({
-                    x: centerX + 60 + Math.cos(angle * Math.PI / 180) * radius,
-                    y: centerY - 100 + Math.sin(angle * Math.PI / 180) * radius,
-                    lung: 'right'
-                });
-            }
+            // Limit to top 80 words for clarity
+            const displayWords = wordCounts.slice(0, 80);
 
-            displayMessages.forEach((msg, index) => {
-                const messageEl = document.createElement('div');
-                messageEl.className = 'message';
-                messageEl.textContent = msg.text;
+            // Calculate max count for sizing
+            const maxCount = displayWords[0]?.count || 1;
+
+            // Placement grid with collision detection
+            const placedWords = [];
+            const angles = [0, 0, 0, 90, -90, 45, -45]; // Multiple angles for variety
+
+            displayWords.forEach((wordObj, index) => {
+                const wordEl = document.createElement('div');
+                wordEl.className = 'word';
+                wordEl.textContent = wordObj.text;
                 
-                // Font size based on position (varied for visual interest)
-                const sizes = [14, 16, 18, 20, 22, 24];
-                const size = sizes[index % sizes.length];
-                messageEl.style.fontSize = size + 'px';
+                // Font size based on frequency (24px - 65px)
+                const minSize = 24;
+                const maxSize = 65;
+                const size = Math.round(minSize + ((wordObj.count / maxCount) * (maxSize - minSize)));
+                wordEl.style.fontSize = size + 'px';
                 
-                // Color variation
-                messageEl.style.background = messageColors[index % messageColors.length];
+                // Color
+                wordEl.style.color = wordColors[index % wordColors.length];
                 
-                // Get position from pre-defined lung positions
-                const pos = positions[index % positions.length];
-                messageEl.style.left = pos.x + 'px';
-                messageEl.style.top = pos.y + 'px';
+                // Rotation angle (multiple directions)
+                const angle = angles[index % angles.length];
+                wordEl.style.setProperty('--rotation', angle + 'deg');
                 
-                // Z-index so messages don't overlap too much
-                messageEl.style.zIndex = (index + 1).toString();
+                // Try to find a position without collision
+                let placed = false;
+                let attempts = 0;
+                const maxAttempts = 100;
                 
-                // Add animation delay for staggered effect
-                messageEl.style.animationDelay = (index * 0.05) + 's';
-                
-                // Add timestamp tooltip
-                if (msg.timestamp) {
-                    const date = new Date(msg.timestamp);
-                    messageEl.title = `${msg.text}\n${date.toLocaleTimeString('ar-JO')}`;
+                while (!placed && attempts < maxAttempts) {
+                    // Spiral positioning from center
+                    const spiralAngle = (index * 45 + attempts * 7) * (Math.PI / 180);
+                    const radius = 50 + (attempts * 8) + (Math.random() * 30);
+                    
+                    const x = centerX + (Math.cos(spiralAngle) * radius) - (wordObj.text.length * size / 4);
+                    const y = centerY - 100 + (Math.sin(spiralAngle) * radius * 1.3) - (size / 2);
+                    
+                    // Check if inside lung shape
+                    if (isInsideLung(x, y, centerX, centerY)) {
+                        const wordRect = {
+                            x: x,
+                            y: y,
+                            width: wordObj.text.length * size * 0.6,
+                            height: size * 1.2
+                        };
+                        
+                        // Check collision with already placed words
+                        let collision = false;
+                        for (const placedWord of placedWords) {
+                            if (checkCollision(wordRect, placedWord)) {
+                                collision = true;
+                                break;
+                            }
+                        }
+                        
+                        if (!collision) {
+                            wordEl.style.left = x + 'px';
+                            wordEl.style.top = y + 'px';
+                            wordEl.style.zIndex = (index + 1).toString();
+                            wordEl.style.animationDelay = (index * 0.03) + 's';
+                            wordEl.title = `${wordObj.text}: ${wordObj.count} مرات`;
+                            
+                            container.appendChild(wordEl);
+                            placedWords.push(wordRect);
+                            placed = true;
+                        }
+                    }
+                    
+                    attempts++;
                 }
                 
-                container.appendChild(messageEl);
-                
-                updateDebug(`✅ رسالة ${index + 1}: ${msg.text.substring(0, 15)}...`);
+                if (!placed) {
+                    // Fallback: place anyway at random position
+                    const fallbackAngle = Math.random() * Math.PI * 2;
+                    const fallbackRadius = 100 + Math.random() * 200;
+                    wordEl.style.left = (centerX + Math.cos(fallbackAngle) * fallbackRadius) + 'px';
+                    wordEl.style.top = (centerY - 100 + Math.sin(fallbackAngle) * fallbackRadius * 1.3) + 'px';
+                    container.appendChild(wordEl);
+                }
             });
 
-            updateDebug(`✅ تم عرض ${displayMessages.length} رسالة بنجاح في شكل الرئتين`);
+            updateDebug(`✅ تم عرض ${placedWords.length} كلمة بنجاح`);
         }
 
-        // Listen for Firebase data
-        updateDebug('جاري الاتصال بقاعدة البيانات...');
+        // Process submissions into word cloud
+        function processSubmissions(data) {
+            const wordCount = {};
+            let totalSubmissions = 0;
+
+            if (data) {
+                Object.values(data).forEach(submission => {
+                    if (submission && submission.text) {
+                        // Break into words
+                        const words = submission.text.toLowerCase().split(/\s+/);
+                        words.forEach(word => {
+                            // Clean: keep Arabic, English, numbers
+                            const cleanWord = word.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '');
+                            if (cleanWord.length > 2) {
+                                wordCount[cleanWord] = (wordCount[cleanWord] || 0) + 1;
+                            }
+                        });
+                        totalSubmissions++;
+                    }
+                });
+            }
+
+            return {
+                wordList: Object.entries(wordCount).map(([text, count]) => ({ text, count })),
+                totalSubmissions
+            };
+        }
+
+        // Listen for Firebase
+        updateDebug('جاري الاتصال...');
         
         database.ref('submissions').on('value', (snapshot) => {
             updateDebug('📥 تم استلام البيانات');
             
             const data = snapshot.val();
-            let totalSubmissions = 0;
-            const messages = [];
-
-            if (data) {
-                const submissions = Object.values(data);
-                updateDebug(`📊 معالجة ${submissions.length} مشاركة`);
-                
-                submissions.forEach((submission, idx) => {
-                    if (!submission || !submission.text) {
-                        updateDebug(`⚠️ المشاركة ${idx} لا تحتوي على نص`);
-                        return;
-                    }
-                    
-                    // Store complete message
-                    messages.push({
-                        text: submission.text.trim(),
-                        timestamp: submission.timestamp
-                    });
-                    
-                    totalSubmissions++;
-                });
-            }
-
-            countElement.textContent = totalSubmissions;
-            updateDebug(`إجمالي الرسائل: ${messages.length}`);
+            const result = processSubmissions(data);
             
-            displayMessages(messages);
+            countElement.textContent = result.totalSubmissions;
+            updateDebug(`إجمالي الكلمات: ${result.wordList.length}`);
+            
+            displayWordCloud(result.wordList);
             
         }, (error) => {
-            console.error('❌ Firebase error:', error);
-            updateDebug('❌ خطأ: ' + error.message);
-            placeholder.textContent = 'خطأ في الاتصال: ' + error.message;
+            console.error('❌ Error:', error);
+            placeholder.textContent = 'خطأ: ' + error.message;
         });
 
-        updateDebug('✅ اكتمل التحميل');
-        
-        // Handle window resize
+        updateDebug('✅ جاهز');
+
+        // Handle resize
         window.addEventListener('resize', () => {
-            updateDebug('📐 تغيير حجم النافذة - إعادة تحميل الرسائل');
+            updateDebug('📐 تغيير الحجم - إعادة تحميل');
             database.ref('submissions').once('value');
         });
     </script>
