@@ -50,23 +50,44 @@
             background: white;
             border-radius: 20px;
             box-shadow: 0 10px 40px rgba(46, 125, 50, 0.2);
-            overflow: visible;
+            overflow: hidden;
         }
 
-        .word {
+        .message {
             position: absolute;
             font-weight: bold;
+            padding: 10px 20px;
+            border-radius: 25px;
+            background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
+            color: white;
             cursor: default;
-            padding: 5px 10px;
-            border-radius: 5px;
-            background: rgba(255,255,255,0.9);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            animation: popIn 0.5s ease-out;
+            box-shadow: 0 4px 15px rgba(46, 125, 50, 0.3);
+            animation: floatIn 0.6s ease-out;
+            max-width: 300px;
+            text-align: center;
+            transition: transform 0.3s ease;
         }
 
-        @keyframes popIn {
-            0% { opacity: 0; transform: scale(0); }
-            100% { opacity: 1; transform: scale(1); }
+        .message:hover {
+            transform: scale(1.1);
+            z-index: 1000;
+            box-shadow: 0 6px 25px rgba(46, 125, 50, 0.5);
+        }
+
+        @keyframes floatIn {
+            0% { 
+                opacity: 0; 
+                transform: scale(0.5) translateY(20px); 
+            }
+            100% { 
+                opacity: 1; 
+                transform: scale(1) translateY(0); 
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
         }
 
         .qr-hint {
@@ -102,11 +123,6 @@
             font-size: 1.2em;
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-
         .live-indicator {
             position: absolute;
             top: 20px;
@@ -140,6 +156,16 @@
             z-index: 10;
         }
 
+        .lung-shape {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            opacity: 0.1;
+            pointer-events: none;
+            z-index: 0;
+        }
+
         #debug-info {
             position: fixed;
             bottom: 10px;
@@ -169,16 +195,23 @@
         </div>
 
         <div id="wordcloud-container">
+            <!-- Lung background shape -->
+            <svg class="lung-shape" width="400" height="500" viewBox="0 0 400 500">
+                <path d="M200 50 C100 50 50 150 50 250 C50 350 100 400 150 380 C170 370 180 340 190 320 C195 340 205 340 210 320 C220 340 230 370 250 380 C300 400 350 350 350 250 C350 150 300 50 200 50 Z" 
+                      fill="#2e7d32"/>
+            </svg>
+            
             <div id="placeholder" class="placeholder-text">انتظروا المشاركات الأولى... 🌿</div>
+            <!-- Full messages will be added here -->
         </div>
 
         <div class="qr-hint">
-            <img src="image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAYAAAB5fY51AAAACXBIWXMAAA7EAAAOxAGVKw4bAAADZ0lEQVR4nO3dQW7bMBBA0eH9D+0uugiQRZBFkEWR ..." alt="QR Code">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAYAAAB5fY51AAAACXBIWXMAAA7EAAAOxAGVKw4bAAADZ0lEQVR4nO3dQW7bMBBA0eH9D+0uugiQRZBFkEWR ..." alt="QR Code">
             <p>امسحوا الكود وشاركونا كلماتكم!</p>
         </div>
     </div>
 
-    <div id="debug-info">Initializing...</div>
+    <div id="debug-info">جاري التحميل...</div>
 
     <script>
         // Firebase Configuration
@@ -200,10 +233,13 @@
         const countElement = document.getElementById('count');
         const debugInfo = document.getElementById('debug-info');
 
-        // Green color palette - DARKER for visibility
-        const greenColors = [
-            '#1b5e20', '#2e7d32', '#1b5e20', '#2e7d32', 
-            '#388e3c', '#43a047', '#2e7d32', '#1b5e20'
+        // Green color variations for message bubbles
+        const messageColors = [
+            'linear-gradient(135deg, #4caf50 0%, #2e7d32 100%)',
+            'linear-gradient(135deg, #66bb6a 0%, #388e3c 100%)',
+            'linear-gradient(135deg, #81c784 0%, #43a047 100%)',
+            'linear-gradient(135deg, #4caf50 0%, #1b5e20 100%)',
+            'linear-gradient(135deg, #66bb6a 0%, #2e5a1c 100%)'
         ];
 
         function updateDebug(msg) {
@@ -211,131 +247,125 @@
             console.log('🔧', msg);
         }
 
-        function createWordCloud(words) {
-            updateDebug(`Creating cloud with ${words.length} words`);
+        function displayMessages(messages) {
+            updateDebug(`عرض ${messages.length} رسالة`);
             
-            // Remove old words
-            const oldWords = container.querySelectorAll('.word');
-            oldWords.forEach(w => w.remove());
+            // Remove old messages
+            const oldMessages = container.querySelectorAll('.message');
+            oldMessages.forEach(m => m.remove());
 
-            if (words.length === 0) {
+            if (messages.length === 0) {
                 placeholder.style.display = 'block';
-                updateDebug('No words - showing placeholder');
+                updateDebug('لا توجد رسائل - عرض الرسالة الافتراضية');
                 return;
             }
 
             placeholder.style.display = 'none';
-            updateDebug(`Processing ${words.length} words`);
-
-            // Sort by count
-            words.sort((a, b) => b.count - a.count);
+            updateDebug(`عرض ${messages.length} رسالة كاملة`);
 
             const containerWidth = container.clientWidth;
             const containerHeight = container.clientHeight;
-            const centerX = containerWidth / 2;
-            const centerY = containerHeight / 2;
 
-            // Create words in a grid pattern for guaranteed visibility
-            let placedCount = 0;
-            const maxWords = Math.min(words.length, 30); // Show max 30 words
+            // Show last 20 messages (most recent first)
+            const recentMessages = messages.slice(-20).reverse();
             
-            for (let i = 0; i < maxWords; i++) {
-                const wordObj = words[i];
+            // Position messages in a cloud pattern within lung shape
+            recentMessages.forEach((msg, index) => {
+                const messageEl = document.createElement('div');
+                messageEl.className = 'message';
+                messageEl.textContent = msg.text;
                 
-                const wordEl = document.createElement('div');
-                wordEl.className = 'word';
-                wordEl.textContent = wordObj.text;
+                // Font size based on position (newer = slightly larger)
+                const baseSize = 20;
+                const maxSize = 32;
+                const size = baseSize + ((index / recentMessages.length) * (maxSize - baseSize));
+                messageEl.style.fontSize = size + 'px';
                 
-                // Font size: 32-60px based on frequency
-                const minSize = 32;
-                const maxSize = 60;
-                const maxCount = words[0].count;
-                const size = Math.round(minSize + ((wordObj.count / maxCount) * (maxSize - minSize)));
+                // Color variation
+                messageEl.style.background = messageColors[index % messageColors.length];
                 
-                wordEl.style.fontSize = size + 'px';
-                wordEl.style.color = greenColors[i % greenColors.length];
-                wordEl.style.zIndex = (100 - i).toString();
+                // Position in a spiral/cloud pattern
+                const angle = (index * 75) * (Math.PI / 180);
+                const radius = 80 + (index * 25);
                 
-                // SIMPLE GRID POSITIONING - guaranteed to be visible
-                const cols = 5;
-                const col = i % cols;
-                const row = Math.floor(i / cols);
-                const cellWidth = containerWidth / cols;
-                const cellHeight = containerHeight / 6;
+                const centerX = containerWidth / 2;
+                const centerY = containerHeight / 2;
                 
-                const x = (col * cellWidth) + (cellWidth / 2) - (wordObj.text.length * size / 4);
-                const y = (row * cellHeight) + (cellHeight / 2) - (size / 2);
+                const x = centerX + (Math.cos(angle) * radius) - 100;
+                const y = centerY + (Math.sin(angle) * radius) - 25;
                 
-                wordEl.style.left = Math.max(20, x) + 'px';
-                wordEl.style.top = Math.max(20, y) + 'px';
+                // Keep within bounds
+                messageEl.style.left = Math.max(20, Math.min(x, containerWidth - 220)) + 'px';
+                messageEl.style.top = Math.max(20, Math.min(y, containerHeight - 60)) + 'px';
                 
-                // Add hover effect
-                wordEl.title = `${wordObj.text} (${wordObj.count} مرات)`;
-                wordEl.style.cursor = 'pointer';
-                wordEl.onclick = function() {
-                    this.style.transform = 'scale(1.3)';
-                    setTimeout(() => {
-                        this.style.transform = 'scale(1)';
-                    }, 300);
-                };
+                // Z-index so newer messages appear on top
+                messageEl.style.zIndex = (index + 1).toString();
                 
-                container.appendChild(wordEl);
-                placedCount++;
+                // Add animation delay for staggered effect
+                messageEl.style.animationDelay = (index * 0.1) + 's';
                 
-                updateDebug(`Placed word ${i+1}/${maxWords}: ${wordObj.text} at ${Math.max(20,x)},${Math.max(20,y)}`);
-            }
+                // Add timestamp tooltip
+                if (msg.timestamp) {
+                    const date = new Date(msg.timestamp);
+                    messageEl.title = `${msg.text}\n${date.toLocaleTimeString('ar-JO')}`;
+                }
+                
+                container.appendChild(messageEl);
+                
+                updateDebug(`✅ رسالة ${index + 1}: ${msg.text.substring(0, 20)}...`);
+            });
 
-            updateDebug(`✅ Successfully placed ${placedCount} words`);
+            updateDebug(`✅ تم عرض ${recentMessages.length} رسالة بنجاح`);
         }
 
         // Listen for Firebase data
-        updateDebug('Connecting to Firebase...');
+        updateDebug('جاري الاتصال بقاعدة البيانات...');
         
         database.ref('submissions').on('value', (snapshot) => {
-            updateDebug('📥 Data received');
+            updateDebug('📥 تم استلام البيانات');
             
             const data = snapshot.val();
-            const wordCount = {};
             let totalSubmissions = 0;
+            const messages = [];
 
             if (data) {
                 const submissions = Object.values(data);
-                updateDebug(`Processing ${submissions.length} submissions`);
+                updateDebug(`📊 معالجة ${submissions.length} مشاركة`);
                 
                 submissions.forEach((submission, idx) => {
                     if (!submission || !submission.text) {
-                        updateDebug(`⚠️ Submission ${idx} has no text`);
+                        updateDebug(`⚠️ المشاركة ${idx} لا تحتوي على نص`);
                         return;
                     }
                     
-                    const words = submission.text.toLowerCase().split(/\s+/);
-                    words.forEach(word => {
-                        const cleanWord = word.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '');
-                        if (cleanWord.length > 2) {
-                            wordCount[cleanWord] = (wordCount[cleanWord] || 0) + 1;
-                        }
+                    // Store complete message (NOT breaking into words)
+                    messages.push({
+                        text: submission.text.trim(),
+                        timestamp: submission.timestamp
                     });
+                    
                     totalSubmissions++;
                 });
             }
 
-            const wordList = Object.entries(wordCount).map(([text, count]) => ({
-                text,
-                count
-            }));
-
             countElement.textContent = totalSubmissions;
-            updateDebug(`Total words: ${wordList.length}, Total submissions: ${totalSubmissions}`);
+            updateDebug(`إجمالي الرسائل: ${messages.length}`);
             
-            createWordCloud(wordList);
+            displayMessages(messages);
             
         }, (error) => {
             console.error('❌ Firebase error:', error);
-            updateDebug('❌ Error: ' + error.message);
-            placeholder.textContent = 'خطأ: ' + error.message;
+            updateDebug('❌ خطأ: ' + error.message);
+            placeholder.textContent = 'خطأ في الاتصال: ' + error.message;
         });
 
-        updateDebug('✅ Initialization complete');
+        updateDebug('✅ اكتمل التحميل');
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            updateDebug('📐 تغيير حجم النافذة - إعادة تحميل الرسائل');
+            database.ref('submissions').once('value');
+        });
     </script>
 </body>
 </html>
