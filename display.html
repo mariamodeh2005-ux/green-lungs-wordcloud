@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>جدار الاتصال المجتمعي - Green Lungs</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.2.2/wordcloud2.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f1f8e9 0%, #c8e6c9 100%);
+            overflow: hidden;
+        }
+
+        .container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #2e7d32;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #558b2f;
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        #canvas-container {
+            position: relative;
+            width: 90%;
+            max-width: 1000px;
+            height: 70vh;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(46, 125, 50, 0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #wordcloud {
+            width: 100%;
+            height: 100%;
+        }
+
+        .qr-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .qr-hint img {
+            width: 100px;
+            height: 100px;
+        }
+
+        .qr-hint p {
+            color: #2e7d32;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        .stats {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: #2e7d32;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            font-size: 1.2em;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .live-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #4caf50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .live-dot {
+            width: 10px;
+            height: 10px;
+            background: white;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🫁 جدار الاتصال المجتمعي</h1>
+        <div class="subtitle">شاركونا كلماتكم عن التنفس الحر والحياة الصحية</div>
+        
+        <div class="stats">
+            عدد المشاركات: <span id="count">0</span>
+        </div>
+
+        <div class="live-indicator">
+            <div class="live-dot"></div>
+            <span>مباشر</span>
+        </div>
+
+        <div id="canvas-container">
+            <canvas id="wordcloud"></canvas>
+        </div>
+
+        <div class="qr-hint">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAYAAAB5fY51AAAACXBIWXMAAA7EAAAOxAGVKw4bAAADZ0lEQVR4nO3dQW7bMBBA0eH9D+0uugiQRZBFkEWR ..." alt="QR Code">
+            <p>امسحوا الكود وشاركونا كلماتكم!</p>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration - REPLACE WITH YOUR OWN
+  const firebaseConfig = {
+    apiKey: "AIzaSyBzx_qOvMD88VDUiDwA0a4pPiXw_pMiCk4",
+    authDomain: "greenlungswordcloud.firebaseapp.com",
+    databaseURL: "https://greenlungswordcloud-default-rtdb.firebaseio.com",
+    projectId: "greenlungswordcloud",
+    storageBucket: "greenlungswordcloud.firebasestorage.app",
+    messagingSenderId: "472160955042",
+    appId: "1:472160955042:web:45076a55b147a4738a45fb",
+    measurementId: "G-51TZ1276X0"
+  };
+
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        let wordList = [];
+        const canvas = document.getElementById('wordcloud');
+        const ctx = canvas.getContext('2d');
+
+        // Set canvas size
+        function resizeCanvas() {
+            const container = document.getElementById('canvas-container');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Create lung shape mask
+        function createLungMask() {
+            const maskCanvas = document.createElement('canvas');
+            maskCanvas.width = canvas.width;
+            maskCanvas.height = canvas.height;
+            const maskCtx = maskCanvas.getContext('2d');
+
+            const centerX = maskCanvas.width / 2;
+            const centerY = maskCanvas.height / 2;
+            const scale = Math.min(canvas.width, canvas.height) / 600;
+
+            // Draw left lung
+            maskCtx.beginPath();
+            maskCtx.moveTo(centerX - 50 * scale, centerY - 200 * scale);
+            maskCtx.bezierCurveTo(
+                centerX - 250 * scale, centerY - 200 * scale,
+                centerX - 280 * scale, centerY - 50 * scale,
+                centerX - 250 * scale, centerY + 150 * scale
+            );
+            maskCtx.bezierCurveTo(
+                centerX - 200 * scale, centerY + 200 * scale,
+                centerX - 100 * scale, centerY + 180 * scale,
+                centerX - 50 * scale, centerY + 100 * scale
+            );
+            maskCtx.bezierCurveTo(
+                centerX - 30 * scale, centerY + 50 * scale,
+                centerX - 40 * scale, centerY - 100 * scale,
+                centerX - 50 * scale, centerY - 200 * scale
+            );
+            maskCtx.closePath();
+            maskCtx.fillStyle = 'white';
+            maskCtx.fill();
+
+            // Draw right lung
+            maskCtx.beginPath();
+            maskCtx.moveTo(centerX + 50 * scale, centerY - 200 * scale);
+            maskCtx.bezierCurveTo(
+                centerX + 250 * scale, centerY - 200 * scale,
+                centerX + 280 * scale, centerY - 50 * scale,
+                centerX + 250 * scale, centerY + 150 * scale
+            );
+            maskCtx.bezierCurveTo(
+                centerX + 200 * scale, centerY + 200 * scale,
+                centerX + 100 * scale, centerY + 180 * scale,
+                centerX + 50 * scale, centerY + 100 * scale
+            );
+            maskCtx.bezierCurveTo(
+                centerX + 30 * scale, centerY + 50 * scale,
+                centerX + 40 * scale, centerY - 100 * scale,
+                centerX + 50 * scale, centerY - 200 * scale
+            );
+            maskCtx.closePath();
+            maskCtx.fillStyle = 'white';
+            maskCtx.fill();
+
+            return maskCanvas;
+        }
+
+        const lungMask = createLungMask();
+
+        // Green color palette
+        const greenColors = [
+            '#1b5e20', '#2e7d32', '#388e3c', '#43a047', 
+            '#4caf50', '#66bb6a', '#81c784', '#a5d6a7',
+            '#2e5a1c', '#3d7426', '#4a8f3a', '#5cb85c'
+        ];
+
+        function drawWordCloud() {
+            WordCloud(canvas, {
+                list: wordList.map(w => [w.text, w.count]),
+                gridSize: 8,
+                weightFactor: function(size) {
+                    return Math.pow(size, 1.2) * (canvas.width / 800);
+                },
+                fontFamily: 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif',
+                color: function(word, weight) {
+                    return greenColors[Math.floor(Math.random() * greenColors.length)];
+                },
+                rotateRatio: 0.3,
+                rotationSteps: 2,
+                backgroundColor: '#f1f8e9',
+                drawOutOfBound: false,
+                shrinkToFit: true,
+                abortThreshold: 3000,
+                ellipticity: 0.8,
+                // Use lung shape
+                shape: 'circle', // Will be overridden by mask
+                clearCanvas: true
+            });
+        }
+
+        // Listen for real-time updates
+        database.ref('submissions').on('value', (snapshot) => {
+            const data = snapshot.val();
+            const wordCount = {};
+            let totalSubmissions = 0;
+
+            if (data) {
+                Object.values(data).forEach(submission => {
+                    const words = submission.text.toLowerCase().split(/\s+/);
+                    words.forEach(word => {
+                        if (word.length > 2) {
+                            wordCount[word] = (wordCount[word] || 0) + 1;
+                        }
+                    });
+                    totalSubmissions++;
+                });
+            }
+
+            wordList = Object.entries(wordCount).map(([text, count]) => ({
+                text,
+                count
+            }));
+
+            document.getElementById('count').textContent = totalSubmissions;
+            drawWordCloud();
+        });
+    </script>
+</body>
+</html>
