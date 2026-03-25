@@ -66,6 +66,10 @@
             padding: 8px 16px;
             border-radius: 20px;
             opacity: 0.9;
+            max-width: 220px;
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .message:hover {
@@ -73,6 +77,8 @@
             z-index: 1000;
             opacity: 1;
             text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+            white-space: normal;
+            max-width: 280px;
         }
 
         @keyframes floatIn {
@@ -192,24 +198,10 @@
         </div>
 
         <div id="wordcloud-container">
-            <!-- Lung outline background -->
             <svg class="lung-outline" viewBox="0 0 500 600">
-                <!-- Left Lung -->
-                <path d="M250 80 
-                         C180 80 120 150 120 280 
-                         C120 380 150 480 200 500 
-                         C220 510 235 480 245 450 
-                         L245 300 
-                         L245 80 Z"/>
-                <!-- Right Lung -->
-                <path d="M250 80 
-                         C320 80 380 150 380 280 
-                         C380 380 350 480 300 500 
-                         C280 510 265 480 255 450 
-                         L255 300 
-                         L255 80 Z"/>
+                <path d="M250 80 C180 80 120 150 120 280 C120 380 150 480 200 500 C220 510 235 480 245 450 L245 300 L245 80 Z"/>
+                <path d="M250 80 C320 80 380 150 380 280 C380 380 350 480 300 500 C280 510 265 480 255 450 L255 300 L255 80 Z"/>
             </svg>
-
             <div id="placeholder" class="placeholder-text">
                 انتظروا المشاركات الأولى... 🌿<br>
                 <span style="font-size:18px; color: #558b2f;">امسحوا الكود وشاركونا رسائلكم!</span>
@@ -217,13 +209,12 @@
         </div>
 
         <div class="qr-hint">
-            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAYAAAB5fY51AAAACXBIWXMAAA7EAAAOxAGVKw4bAAADZ0lEQVR4nO3dQW7bMBBA0eH9D+0uugiQRZBFkEWR ..." alt="QR Code">
+            <img src="image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAYAAAB5fY51AAAACXBIWXMAAA7EAAAOxAGVKw4bAAADZ0lEQVR4nO3dQW7bMBBA0eH9D+0uugiQRZBFkEWR ..." alt="QR Code">
             <p>امسحوا الكود وشاركونا كلماتكم!</p>
         </div>
     </div>
 
     <script>
-        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyBzx_qOvMD88VDUiDwA0a4pPiXw_pMiCk4",
             authDomain: "greenlungswordcloud.firebaseapp.com",
@@ -241,7 +232,6 @@
         const placeholder = document.getElementById('placeholder');
         const countElement = document.getElementById('count');
 
-        // Green color palette
         const messageColors = [
             '#1b5e20', '#2e7d32', '#388e3c', '#43a047', 
             '#4caf50', '#66bb6a', '#81c784', '#2e5a1c',
@@ -249,7 +239,6 @@
         ];
 
         function displayMessageCloud(messages) {
-            // Remove old messages
             const oldMessages = container.querySelectorAll('.message');
             oldMessages.forEach(m => m.remove());
 
@@ -265,17 +254,11 @@
             const centerX = containerWidth / 2;
             const centerY = containerHeight / 2;
 
-            // Sort by frequency (most repeated messages first)
             messages.sort((a, b) => b.count - a.count);
-            
-            // Limit to top 50 messages
             const displayMessages = messages.slice(0, 50);
             const maxCount = displayMessages[0]?.count || 1;
 
-            // Different rotation angles
             const angles = [0, 0, 0, 90, -90, 45, -45, 0];
-            
-            // Track placed messages for collision detection
             const placedMessages = [];
 
             displayMessages.forEach((msgObj, index) => {
@@ -283,44 +266,37 @@
                 msgEl.className = 'message';
                 msgEl.textContent = msgObj.text;
                 
-                // Font size based on frequency (16px - 40px)
-                const minSize = 16;
-                const maxSize = 40;
+                const minSize = 14;
+                const maxSize = 36;
                 const size = Math.round(minSize + ((msgObj.count / maxCount) * (maxSize - minSize)));
                 msgEl.style.fontSize = size + 'px';
                 
-                // Color
                 msgEl.style.background = messageColors[index % messageColors.length];
                 
-                // Rotation
                 const rotation = angles[index % angles.length];
                 msgEl.style.setProperty('--rotation', rotation + 'deg');
                 
-                // Calculate position in lung shape
                 let placed = false;
                 let attempts = 0;
                 
                 while (!placed && attempts < 80) {
-                    // Spiral pattern from center
                     const angle = (index * 43 + attempts * 17) * (Math.PI / 180);
                     const radius = 70 + (attempts * 14);
                     
-                    const x = centerX + Math.cos(angle) * radius - (msgObj.text.length * size / 4);
+                    const x = centerX + Math.cos(angle) * radius - (msgObj.text.length * size / 5);
                     const y = centerY - 90 + Math.sin(angle) * radius * 1.25 - (size / 2);
                     
                     const msgRect = {
                         x: x,
                         y: y,
-                        width: msgObj.text.length * size * 0.6,
+                        width: Math.min(msgObj.text.length * size * 0.5, 220),
                         height: size * 1.4
                     };
                     
-                    // Check bounds
                     if (x > 60 && x < containerWidth - 160 && y > 60 && y < containerHeight - 60) {
-                        // Check collision with already placed messages
                         let collision = false;
                         for (const placedMsg of placedMessages) {
-                            const padding = 10;
+                            const padding = 12;
                             if (!(msgRect.x + msgRect.width + padding < placedMsg.x ||
                                   msgRect.x - padding > placedMsg.x + placedMsg.width ||
                                   msgRect.y + msgRect.height + padding < placedMsg.y ||
@@ -335,7 +311,7 @@
                             msgEl.style.top = y + 'px';
                             msgEl.style.zIndex = (index + 1).toString();
                             msgEl.style.animationDelay = (index * 0.05) + 's';
-                            msgEl.title = `${msgObj.text} (${msgObj.count} مرات)`;
+                            msgEl.title = msgObj.text + ` (${msgObj.count} مرات)`;
                             
                             container.appendChild(msgEl);
                             placedMessages.push(msgRect);
@@ -346,7 +322,6 @@
                     attempts++;
                 }
                 
-                // Fallback position
                 if (!placed) {
                     const fallbackX = centerX + (Math.random() - 0.5) * 300;
                     const fallbackY = centerY + (Math.random() - 0.5) * 300;
@@ -357,7 +332,7 @@
             });
         }
 
-        // Process submissions - keep full messages as one unit
+        // Process submissions - keep full message as ONE unit (NOT split into words)
         function processSubmissions(data) {
             const messageCount = {};
             let totalSubmissions = 0;
@@ -365,7 +340,7 @@
             if (data) {
                 Object.values(data).forEach(submission => {
                     if (submission && submission.text) {
-                        // Keep the FULL message as-is (trimmed)
+                        // Keep the FULL message as one complete unit
                         const fullMessage = submission.text.trim();
                         
                         if (fullMessage.length > 0) {
@@ -377,14 +352,12 @@
                 });
             }
 
-            // Convert to array for display
             return {
                 messageList: Object.entries(messageCount).map(([text, count]) => ({ text, count })),
                 totalSubmissions
             };
         }
 
-        // Listen for Firebase
         database.ref('submissions').on('value', (snapshot) => {
             const data = snapshot.val();
             const result = processSubmissions(data);
