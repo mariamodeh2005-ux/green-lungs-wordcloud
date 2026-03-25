@@ -56,32 +56,30 @@
         .word {
             position: absolute;
             font-weight: bold;
-            color: white;
             cursor: default;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
             animation: floatIn 0.6s ease-out;
             transition: all 0.3s ease;
             z-index: 10;
             white-space: nowrap;
-            padding: 4px 8px;
-            border-radius: 5px;
-            opacity: 0.9;
+            opacity: 0.85;
+            padding: 0;
         }
 
         .word:hover {
             transform: scale(1.3);
             z-index: 1000;
             opacity: 1;
-            text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
         @keyframes floatIn {
             0% { 
                 opacity: 0; 
-                transform: scale(0.3) rotate(0deg); 
+                transform: scale(0.5) rotate(0deg); 
             }
             100% { 
-                opacity: 0.9; 
+                opacity: 0.85; 
                 transform: scale(1) rotate(var(--rotation)); 
             }
         }
@@ -167,7 +165,7 @@
             transform: translate(-50%, -50%);
             width: 500px;
             height: 600px;
-            opacity: 0.15;
+            opacity: 0.12;
             pointer-events: none;
             z-index: 0;
         }
@@ -192,38 +190,23 @@
         </div>
 
         <div id="wordcloud-container">
-            <!-- Lung outline background -->
             <svg class="lung-outline" viewBox="0 0 500 600">
-                <!-- Left Lung -->
-                <path d="M250 80 
-                         C180 80 120 150 120 280 
-                         C120 380 150 480 200 500 
-                         C220 510 235 480 245 450 
-                         L245 300 
-                         L245 80 Z"/>
-                <!-- Right Lung -->
-                <path d="M250 80 
-                         C320 80 380 150 380 280 
-                         C380 380 350 480 300 500 
-                         C280 510 265 480 255 450 
-                         L255 300 
-                         L255 80 Z"/>
+                <path d="M250 80 C180 80 120 150 120 280 C120 380 150 480 200 500 C220 510 235 480 245 450 L245 300 L245 80 Z"/>
+                <path d="M250 80 C320 80 380 150 380 280 C380 380 350 480 300 500 C280 510 265 480 255 450 L255 300 L255 80 Z"/>
             </svg>
-
             <div id="placeholder" class="placeholder-text">
                 انتظروا المشاركات الأولى... 🌿<br>
-                <span style="font-size: 18px; color: #558b2f;">امسحوا الكود وشاركونا رسائلكم!</span>
+                <span style="font-size:18px; color: #558b2f;">امسحوا الكود وشاركونا رسائلكم!</span>
             </div>
         </div>
 
         <div class="qr-hint">
-            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAYAAAB5fY51AAAACXBIWXMAAA7EAAAOxAGVKw4bAAADZ0lEQVR4nO3dQW7bMBBA0eH9D+0uugiQRZBFkEWR ..." alt="QR Code">
+            <img src="image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAYAAAB5fY51AAAACXBIWXMAAA7EAAAOxAGVKw4bAAADZ0lEQVR4nO3dQW7bMBBA0eH9D+0uugiQRZBFkEWR ..." alt="QR Code">
             <p>امسحوا الكود وشاركونا كلماتكم!</p>
         </div>
     </div>
 
     <script>
-        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyBzx_qOvMD88VDUiDwA0a4pPiXw_pMiCk4",
             authDomain: "greenlungswordcloud.firebaseapp.com",
@@ -241,19 +224,19 @@
         const placeholder = document.getElementById('placeholder');
         const countElement = document.getElementById('count');
 
-        // Green color palette
+        // Green color palette - direct text colors
         const wordColors = [
             '#1b5e20', '#2e7d32', '#388e3c', '#43a047', 
             '#4caf50', '#66bb6a', '#81c784', '#2e5a1c',
-            '#3d7426', '#4a8f3a', '#5cb85c', '#689f38'
+            '#3d7426', '#4a8f3a', '#5cb85c', '#689f38',
+            '#1b5e20', '#2e7d32', '#388e3c'
         ];
 
-        function displayWordCloud(wordCounts) {
-            // Remove old words
+        function displayWordCloud(messages) {
             const oldWords = container.querySelectorAll('.word');
             oldWords.forEach(w => w.remove());
 
-            if (wordCounts.length === 0) {
+            if (messages.length === 0) {
                 placeholder.style.display = 'block';
                 return;
             }
@@ -266,58 +249,76 @@
             const centerY = containerHeight / 2;
 
             // Sort by frequency
-            wordCounts.sort((a, b) => b.count - a.count);
-            
-            // Limit to top 60 words
-            const displayWords = wordCounts.slice(0, 60);
+            messages.sort((a, b) => b.count - a.count);
+            const displayWords = messages.slice(0, 60);
             const maxCount = displayWords[0]?.count || 1;
 
-            // Different rotation angles
-            const angles = [0, 0, 0, 90, -90, 45, -45, 0];
-            
-            // Track placed words for collision detection
+            // Multiple rotation angles for true word cloud effect
+            const angles = [0, 90, -90, 45, -45, 0, 0, 90, -90];
             const placedWords = [];
 
-            displayWords.forEach((wordObj, index) => {
+            displayWords.forEach((msgObj, index) => {
                 const wordEl = document.createElement('div');
                 wordEl.className = 'word';
-                wordEl.textContent = wordObj.text;
+                wordEl.textContent = msgObj.text;
                 
-                // Font size based on frequency (20px - 55px)
-                const minSize = 20;
+                // Font size based on frequency (18px - 55px)
+                const minSize = 18;
                 const maxSize = 55;
-                const size = Math.round(minSize + ((wordObj.count / maxCount) * (maxSize - minSize)));
+                const size = Math.round(minSize + ((msgObj.count / maxCount) * (maxSize - minSize)));
                 wordEl.style.fontSize = size + 'px';
                 
-                // Color
-                wordEl.style.background = wordColors[index % wordColors.length];
+                // Direct color (no background)
+                wordEl.style.color = wordColors[index % wordColors.length];
                 
-                // Rotation
+                // Rotation angle
                 const rotation = angles[index % angles.length];
                 wordEl.style.setProperty('--rotation', rotation + 'deg');
                 
-                // Calculate position in lung shape
+                // Position with collision detection
                 let placed = false;
                 let attempts = 0;
                 
-                while (!placed && attempts < 50) {
-                    // Spiral pattern from center
-                    const angle = (index * 37 + attempts * 13) * (Math.PI / 180);
-                    const radius = 60 + (attempts * 12);
+                while (!placed && attempts < 100) {
+                    const angle = (index * 47 + attempts * 19) * (Math.PI / 180);
+                    const radius = 80 + (attempts * 12);
                     
-                    const x = centerX + Math.cos(angle) * radius - (wordObj.text.length * size / 3);
-                    const y = centerY - 80 + Math.sin(angle) * radius * 1.2 - (size / 2);
+                    const x = centerX + Math.cos(angle) * radius - (msgObj.text.length * size / 4);
+                    const y = centerY - 100 + Math.sin(angle) * radius * 1.2 - (size / 2);
                     
-                    // Check bounds
-                    if (x > 50 && x < containerWidth - 150 && y > 50 && y < containerHeight - 50) {
-                        wordEl.style.left = x + 'px';
-                        wordEl.style.top = y + 'px';
-                        wordEl.style.zIndex = (index + 1).toString();
-                        wordEl.style.animationDelay = (index * 0.05) + 's';
-                        wordEl.title = `${wordObj.text}: ${wordObj.count} مرات`;
+                    const wordRect = {
+                        x: x,
+                        y: y,
+                        width: msgObj.text.length * size * 0.6,
+                        height: size * 1.3
+                    };
+                    
+                    // Check bounds within lung area
+                    if (x > 80 && x < containerWidth - 180 && y > 70 && y < containerHeight - 70) {
+                        // Check collision
+                        let collision = false;
+                        for (const placedWord of placedWords) {
+                            const padding = 8;
+                            if (!(wordRect.x + wordRect.width + padding < placedWord.x ||
+                                  wordRect.x - padding > placedWord.x + placedWord.width ||
+                                  wordRect.y + wordRect.height + padding < placedWord.y ||
+                                  wordRect.y - padding > placedWord.y + placedWord.height)) {
+                                collision = true;
+                                break;
+                            }
+                        }
                         
-                        container.appendChild(wordEl);
-                        placed = true;
+                        if (!collision) {
+                            wordEl.style.left = x + 'px';
+                            wordEl.style.top = y + 'px';
+                            wordEl.style.zIndex = (index + 1).toString();
+                            wordEl.style.animationDelay = (index * 0.04) + 's';
+                            wordEl.title = `${msgObj.text} (${msgObj.count} مرات)`;
+                            
+                            container.appendChild(wordEl);
+                            placedWords.push(wordRect);
+                            placed = true;
+                        }
                     }
                     
                     attempts++;
@@ -325,8 +326,8 @@
                 
                 // Fallback position
                 if (!placed) {
-                    const fallbackX = centerX + (Math.random() - 0.5) * 300;
-                    const fallbackY = centerY + (Math.random() - 0.5) * 300;
+                    const fallbackX = 100 + (index % 6) * 130;
+                    const fallbackY = 100 + Math.floor(index / 6) * 80;
                     wordEl.style.left = fallbackX + 'px';
                     wordEl.style.top = fallbackY + 'px';
                     container.appendChild(wordEl);
@@ -334,39 +335,35 @@
             });
         }
 
-        // Process submissions
+        // Process submissions - keep full messages
         function processSubmissions(data) {
-            const wordCount = {};
+            const messageCount = {};
             let totalSubmissions = 0;
 
             if (data) {
                 Object.values(data).forEach(submission => {
                     if (submission && submission.text) {
-                        const words = submission.text.toLowerCase().split(/\s+/);
-                        words.forEach(word => {
-                            const cleanWord = word.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '');
-                            if (cleanWord.length > 2) {
-                                wordCount[cleanWord] = (wordCount[cleanWord] || 0) + 1;
-                            }
-                        });
+                        const fullMessage = submission.text.trim();
+                        if (fullMessage.length > 0) {
+                            messageCount[fullMessage] = (messageCount[fullMessage] || 0) + 1;
+                        }
                         totalSubmissions++;
                     }
                 });
             }
 
             return {
-                wordList: Object.entries(wordCount).map(([text, count]) => ({ text, count })),
+                messageList: Object.entries(messageCount).map(([text, count]) => ({ text, count })),
                 totalSubmissions
             };
         }
 
-        // Listen for Firebase
         database.ref('submissions').on('value', (snapshot) => {
             const data = snapshot.val();
             const result = processSubmissions(data);
             
             countElement.textContent = result.totalSubmissions;
-            displayWordCloud(result.wordList);
+            displayWordCloud(result.messageList);
             
         }, (error) => {
             console.error('Error:', error);
