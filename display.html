@@ -53,7 +53,7 @@
             overflow: visible;
         }
 
-        .message {
+        .word {
             position: absolute;
             font-weight: bold;
             color: white;
@@ -63,22 +63,16 @@
             transition: all 0.3s ease;
             z-index: 10;
             white-space: nowrap;
-            padding: 8px 16px;
-            border-radius: 20px;
+            padding: 4px 8px;
+            border-radius: 5px;
             opacity: 0.9;
-            max-width: 220px;
-            text-align: center;
-            overflow: hidden;
-            text-overflow: ellipsis;
         }
 
-        .message:hover {
-            transform: scale(1.2);
+        .word:hover {
+            transform: scale(1.3);
             z-index: 1000;
             opacity: 1;
             text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
-            white-space: normal;
-            max-width: 280px;
         }
 
         @keyframes floatIn {
@@ -198,23 +192,38 @@
         </div>
 
         <div id="wordcloud-container">
+            <!-- Lung outline background -->
             <svg class="lung-outline" viewBox="0 0 500 600">
-                <path d="M250 80 C180 80 120 150 120 280 C120 380 150 480 200 500 C220 510 235 480 245 450 L245 300 L245 80 Z"/>
-                <path d="M250 80 C320 80 380 150 380 280 C380 380 350 480 300 500 C280 510 265 480 255 450 L255 300 L255 80 Z"/>
+                <!-- Left Lung -->
+                <path d="M250 80 
+                         C180 80 120 150 120 280 
+                         C120 380 150 480 200 500 
+                         C220 510 235 480 245 450 
+                         L245 300 
+                         L245 80 Z"/>
+                <!-- Right Lung -->
+                <path d="M250 80 
+                         C320 80 380 150 380 280 
+                         C380 380 350 480 300 500 
+                         C280 510 265 480 255 450 
+                         L255 300 
+                         L255 80 Z"/>
             </svg>
+
             <div id="placeholder" class="placeholder-text">
                 انتظروا المشاركات الأولى... 🌿<br>
-                <span style="font-size:18px; color: #558b2f;">امسحوا الكود وشاركونا رسائلكم!</span>
+                <span style="font-size: 18px; color: #558b2f;">امسحوا الكود وشاركونا رسائلكم!</span>
             </div>
         </div>
 
         <div class="qr-hint">
-            <img src="image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAYAAAB5fY51AAAACXBIWXMAAA7EAAAOxAGVKw4bAAADZ0lEQVR4nO3dQW7bMBBA0eH9D+0uugiQRZBFkEWR ..." alt="QR Code">
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAYAAAB5fY51AAAACXBIWXMAAA7EAAAOxAGVKw4bAAADZ0lEQVR4nO3dQW7bMBBA0eH9D+0uugiQRZBFkEWR ..." alt="QR Code">
             <p>امسحوا الكود وشاركونا كلماتكم!</p>
         </div>
     </div>
 
     <script>
+        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyBzx_qOvMD88VDUiDwA0a4pPiXw_pMiCk4",
             authDomain: "greenlungswordcloud.firebaseapp.com",
@@ -232,17 +241,19 @@
         const placeholder = document.getElementById('placeholder');
         const countElement = document.getElementById('count');
 
-        const messageColors = [
+        // Green color palette
+        const wordColors = [
             '#1b5e20', '#2e7d32', '#388e3c', '#43a047', 
             '#4caf50', '#66bb6a', '#81c784', '#2e5a1c',
             '#3d7426', '#4a8f3a', '#5cb85c', '#689f38'
         ];
 
-        function displayMessageCloud(messages) {
-            const oldMessages = container.querySelectorAll('.message');
-            oldMessages.forEach(m => m.remove());
+        function displayWordCloud(wordCounts) {
+            // Remove old words
+            const oldWords = container.querySelectorAll('.word');
+            oldWords.forEach(w => w.remove());
 
-            if (messages.length === 0) {
+            if (wordCounts.length === 0) {
                 placeholder.style.display = 'block';
                 return;
             }
@@ -254,116 +265,108 @@
             const centerX = containerWidth / 2;
             const centerY = containerHeight / 2;
 
-            messages.sort((a, b) => b.count - a.count);
-            const displayMessages = messages.slice(0, 50);
-            const maxCount = displayMessages[0]?.count || 1;
+            // Sort by frequency
+            wordCounts.sort((a, b) => b.count - a.count);
+            
+            // Limit to top 60 words
+            const displayWords = wordCounts.slice(0, 60);
+            const maxCount = displayWords[0]?.count || 1;
 
+            // Different rotation angles
             const angles = [0, 0, 0, 90, -90, 45, -45, 0];
-            const placedMessages = [];
+            
+            // Track placed words for collision detection
+            const placedWords = [];
 
-            displayMessages.forEach((msgObj, index) => {
-                const msgEl = document.createElement('div');
-                msgEl.className = 'message';
-                msgEl.textContent = msgObj.text;
+            displayWords.forEach((wordObj, index) => {
+                const wordEl = document.createElement('div');
+                wordEl.className = 'word';
+                wordEl.textContent = wordObj.text;
                 
-                const minSize = 14;
-                const maxSize = 36;
-                const size = Math.round(minSize + ((msgObj.count / maxCount) * (maxSize - minSize)));
-                msgEl.style.fontSize = size + 'px';
+                // Font size based on frequency (20px - 55px)
+                const minSize = 20;
+                const maxSize = 55;
+                const size = Math.round(minSize + ((wordObj.count / maxCount) * (maxSize - minSize)));
+                wordEl.style.fontSize = size + 'px';
                 
-                msgEl.style.background = messageColors[index % messageColors.length];
+                // Color
+                wordEl.style.background = wordColors[index % wordColors.length];
                 
+                // Rotation
                 const rotation = angles[index % angles.length];
-                msgEl.style.setProperty('--rotation', rotation + 'deg');
+                wordEl.style.setProperty('--rotation', rotation + 'deg');
                 
+                // Calculate position in lung shape
                 let placed = false;
                 let attempts = 0;
                 
-                while (!placed && attempts < 80) {
-                    const angle = (index * 43 + attempts * 17) * (Math.PI / 180);
-                    const radius = 70 + (attempts * 14);
+                while (!placed && attempts < 50) {
+                    // Spiral pattern from center
+                    const angle = (index * 37 + attempts * 13) * (Math.PI / 180);
+                    const radius = 60 + (attempts * 12);
                     
-                    const x = centerX + Math.cos(angle) * radius - (msgObj.text.length * size / 5);
-                    const y = centerY - 90 + Math.sin(angle) * radius * 1.25 - (size / 2);
+                    const x = centerX + Math.cos(angle) * radius - (wordObj.text.length * size / 3);
+                    const y = centerY - 80 + Math.sin(angle) * radius * 1.2 - (size / 2);
                     
-                    const msgRect = {
-                        x: x,
-                        y: y,
-                        width: Math.min(msgObj.text.length * size * 0.5, 220),
-                        height: size * 1.4
-                    };
-                    
-                    if (x > 60 && x < containerWidth - 160 && y > 60 && y < containerHeight - 60) {
-                        let collision = false;
-                        for (const placedMsg of placedMessages) {
-                            const padding = 12;
-                            if (!(msgRect.x + msgRect.width + padding < placedMsg.x ||
-                                  msgRect.x - padding > placedMsg.x + placedMsg.width ||
-                                  msgRect.y + msgRect.height + padding < placedMsg.y ||
-                                  msgRect.y - padding > placedMsg.y + placedMsg.height)) {
-                                collision = true;
-                                break;
-                            }
-                        }
+                    // Check bounds
+                    if (x > 50 && x < containerWidth - 150 && y > 50 && y < containerHeight - 50) {
+                        wordEl.style.left = x + 'px';
+                        wordEl.style.top = y + 'px';
+                        wordEl.style.zIndex = (index + 1).toString();
+                        wordEl.style.animationDelay = (index * 0.05) + 's';
+                        wordEl.title = `${wordObj.text}: ${wordObj.count} مرات`;
                         
-                        if (!collision) {
-                            msgEl.style.left = x + 'px';
-                            msgEl.style.top = y + 'px';
-                            msgEl.style.zIndex = (index + 1).toString();
-                            msgEl.style.animationDelay = (index * 0.05) + 's';
-                            msgEl.title = msgObj.text + ` (${msgObj.count} مرات)`;
-                            
-                            container.appendChild(msgEl);
-                            placedMessages.push(msgRect);
-                            placed = true;
-                        }
+                        container.appendChild(wordEl);
+                        placed = true;
                     }
                     
                     attempts++;
                 }
                 
+                // Fallback position
                 if (!placed) {
                     const fallbackX = centerX + (Math.random() - 0.5) * 300;
                     const fallbackY = centerY + (Math.random() - 0.5) * 300;
-                    msgEl.style.left = fallbackX + 'px';
-                    msgEl.style.top = fallbackY + 'px';
-                    container.appendChild(msgEl);
+                    wordEl.style.left = fallbackX + 'px';
+                    wordEl.style.top = fallbackY + 'px';
+                    container.appendChild(wordEl);
                 }
             });
         }
 
-        // Process submissions - keep full message as ONE unit (NOT split into words)
+        // Process submissions
         function processSubmissions(data) {
-            const messageCount = {};
+            const wordCount = {};
             let totalSubmissions = 0;
 
             if (data) {
                 Object.values(data).forEach(submission => {
                     if (submission && submission.text) {
-                        // Keep the FULL message as one complete unit
-                        const fullMessage = submission.text.trim();
-                        
-                        if (fullMessage.length > 0) {
-                            // Count identical messages for sizing
-                            messageCount[fullMessage] = (messageCount[fullMessage] || 0) + 1;
-                        }
+                        const words = submission.text.toLowerCase().split(/\s+/);
+                        words.forEach(word => {
+                            const cleanWord = word.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '');
+                            if (cleanWord.length > 2) {
+                                wordCount[cleanWord] = (wordCount[cleanWord] || 0) + 1;
+                            }
+                        });
                         totalSubmissions++;
                     }
                 });
             }
 
             return {
-                messageList: Object.entries(messageCount).map(([text, count]) => ({ text, count })),
+                wordList: Object.entries(wordCount).map(([text, count]) => ({ text, count })),
                 totalSubmissions
             };
         }
 
+        // Listen for Firebase
         database.ref('submissions').on('value', (snapshot) => {
             const data = snapshot.val();
             const result = processSubmissions(data);
             
             countElement.textContent = result.totalSubmissions;
-            displayMessageCloud(result.messageList);
+            displayWordCloud(result.wordList);
             
         }, (error) => {
             console.error('Error:', error);
