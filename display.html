@@ -62,15 +62,10 @@
             animation: floatIn 0.6s ease-out;
             transition: all 0.3s ease;
             z-index: 10;
-            padding: 6px 14px;
+            white-space: nowrap;
+            padding: 8px 16px;
             border-radius: 20px;
             opacity: 0.9;
-            max-width: 200px;
-            text-align: center;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            direction: rtl;
         }
 
         .message:hover {
@@ -78,8 +73,6 @@
             z-index: 1000;
             opacity: 1;
             text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
-            white-space: normal;
-            max-width: 250px;
         }
 
         @keyframes floatIn {
@@ -199,13 +192,27 @@
         </div>
 
         <div id="wordcloud-container">
+            <!-- Lung outline background -->
             <svg class="lung-outline" viewBox="0 0 500 600">
-                <path d="M250 80 C180 80 120 150 120 280 C120 380 150 480 200 500 C220 510 235 480 245 450 L245 300 L245 80 Z"/>
-                <path d="M250 80 C320 80 380 150 380 280 C380 380 350 480 300 500 C280 510 265 480 255 450 L255 300 L255 80 Z"/>
+                <!-- Left Lung -->
+                <path d="M250 80 
+                         C180 80 120 150 120 280 
+                         C120 380 150 480 200 500 
+                         C220 510 235 480 245 450 
+                         L245 300 
+                         L245 80 Z"/>
+                <!-- Right Lung -->
+                <path d="M250 80 
+                         C320 80 380 150 380 280 
+                         C380 380 350 480 300 500 
+                         C280 510 265 480 255 450 
+                         L255 300 
+                         L255 80 Z"/>
             </svg>
+
             <div id="placeholder" class="placeholder-text">
                 انتظروا المشاركات الأولى... 🌿<br>
-                <span style="font-size: 18px; color: #558b2f;">امسحوا الكود وشاركونا رسائلكم!</span>
+                <span style="font-size:18px; color: #558b2f;">امسحوا الكود وشاركونا رسائلكم!</span>
             </div>
         </div>
 
@@ -216,6 +223,7 @@
     </div>
 
     <script>
+        // Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyBzx_qOvMD88VDUiDwA0a4pPiXw_pMiCk4",
             authDomain: "greenlungswordcloud.firebaseapp.com",
@@ -257,15 +265,17 @@
             const centerX = containerWidth / 2;
             const centerY = containerHeight / 2;
 
-            // Sort by frequency (most repeated messages = larger)
+            // Sort by frequency (most repeated messages first)
             messages.sort((a, b) => b.count - a.count);
             
-            // Limit to top 40 unique messages for clarity
-            const displayMessages = messages.slice(0, 40);
+            // Limit to top 50 messages
+            const displayMessages = messages.slice(0, 50);
             const maxCount = displayMessages[0]?.count || 1;
 
-            // Different rotation angles for variety
+            // Different rotation angles
             const angles = [0, 0, 0, 90, -90, 45, -45, 0];
+            
+            // Track placed messages for collision detection
             const placedMessages = [];
 
             displayMessages.forEach((msgObj, index) => {
@@ -273,50 +283,44 @@
                 msgEl.className = 'message';
                 msgEl.textContent = msgObj.text;
                 
-                // Font size based on frequency (18px - 42px)
-                const minSize = 18;
-                const maxSize = 42;
+                // Font size based on frequency (16px - 40px)
+                const minSize = 16;
+                const maxSize = 40;
                 const size = Math.round(minSize + ((msgObj.count / maxCount) * (maxSize - minSize)));
                 msgEl.style.fontSize = size + 'px';
                 
                 // Color
                 msgEl.style.background = messageColors[index % messageColors.length];
                 
-                // Rotation angle
+                // Rotation
                 const rotation = angles[index % angles.length];
                 msgEl.style.setProperty('--rotation', rotation + 'deg');
                 
-                // Truncate long messages with ellipsis, show full on hover
-                if (msgObj.text.length > 25) {
-                    msgEl.title = msgObj.text;
-                }
-                
-                // Find position with collision detection
+                // Calculate position in lung shape
                 let placed = false;
                 let attempts = 0;
-                const maxAttempts = 80;
                 
-                while (!placed && attempts < maxAttempts) {
-                    // Spiral pattern from center within lung shape
-                    const angle = (index * 43 + attempts * 19) * (Math.PI / 180);
+                while (!placed && attempts < 80) {
+                    // Spiral pattern from center
+                    const angle = (index * 43 + attempts * 17) * (Math.PI / 180);
                     const radius = 70 + (attempts * 14);
                     
-                    const x = centerX + Math.cos(angle) * radius - (msgObj.text.length * size / 5);
+                    const x = centerX + Math.cos(angle) * radius - (msgObj.text.length * size / 4);
                     const y = centerY - 90 + Math.sin(angle) * radius * 1.25 - (size / 2);
                     
                     const msgRect = {
                         x: x,
                         y: y,
-                        width: Math.min(msgObj.text.length * size * 0.5, 200),
+                        width: msgObj.text.length * size * 0.6,
                         height: size * 1.4
                     };
                     
-                    // Check bounds (within lung area)
-                    if (x > 80 && x < containerWidth - 180 && y > 70 && y < containerHeight - 70) {
+                    // Check bounds
+                    if (x > 60 && x < containerWidth - 160 && y > 60 && y < containerHeight - 60) {
                         // Check collision with already placed messages
                         let collision = false;
                         for (const placedMsg of placedMessages) {
-                            const padding = 12;
+                            const padding = 10;
                             if (!(msgRect.x + msgRect.width + padding < placedMsg.x ||
                                   msgRect.x - padding > placedMsg.x + placedMsg.width ||
                                   msgRect.y + msgRect.height + padding < placedMsg.y ||
@@ -330,7 +334,8 @@
                             msgEl.style.left = x + 'px';
                             msgEl.style.top = y + 'px';
                             msgEl.style.zIndex = (index + 1).toString();
-                            msgEl.style.animationDelay = (index * 0.06) + 's';
+                            msgEl.style.animationDelay = (index * 0.05) + 's';
+                            msgEl.title = `${msgObj.text} (${msgObj.count} مرات)`;
                             
                             container.appendChild(msgEl);
                             placedMessages.push(msgRect);
@@ -341,10 +346,10 @@
                     attempts++;
                 }
                 
-                // Fallback: place in grid if can't find spot
+                // Fallback position
                 if (!placed) {
-                    const fallbackX = 120 + (index % 4) * 180;
-                    const fallbackY = 100 + Math.floor(index / 4) * 90;
+                    const fallbackX = centerX + (Math.random() - 0.5) * 300;
+                    const fallbackY = centerY + (Math.random() - 0.5) * 300;
                     msgEl.style.left = fallbackX + 'px';
                     msgEl.style.top = fallbackY + 'px';
                     container.appendChild(msgEl);
@@ -352,7 +357,7 @@
             });
         }
 
-        // Process submissions - keep full messages, don't split into words
+        // Process submissions - keep full messages as one unit
         function processSubmissions(data) {
             const messageCount = {};
             let totalSubmissions = 0;
@@ -379,7 +384,7 @@
             };
         }
 
-        // Listen for Firebase updates
+        // Listen for Firebase
         database.ref('submissions').on('value', (snapshot) => {
             const data = snapshot.val();
             const result = processSubmissions(data);
