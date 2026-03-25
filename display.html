@@ -53,7 +53,7 @@
             overflow: visible;
         }
 
-        .word {
+        .message {
             position: absolute;
             font-weight: bold;
             color: white;
@@ -62,14 +62,16 @@
             animation: floatIn 0.6s ease-out;
             transition: all 0.3s ease;
             z-index: 10;
-            white-space: nowrap;
-            padding: 4px 8px;
-            border-radius: 5px;
+            padding: 8px 15px;
+            border-radius: 20px;
             opacity: 0.9;
+            text-align: center;
+            max-width: 250px;
+            line-height: 1.4;
         }
 
-        .word:hover {
-            transform: scale(1.3);
+        .message:hover {
+            transform: scale(1.2);
             z-index: 1000;
             opacity: 1;
             text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
@@ -203,7 +205,7 @@
         </div>
 
         <div class="qr-hint">
-            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAYAAAB5fY51AAAACXBIWXMAAA7EAAAOxAGVKw4bAAADZ0lEQVR4nO3dQW7bMBBA0eH9D+0uugiQRZBFkEWR ..." alt="QR Code">
+            <img src="image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAYAAAB5fY51AAAACXBIWXMAAA7EAAAOxAGVKw4bAAADZ0lEQVR4nO3dQW7bMBBA0eH9D+0uugiQRZBFkEWR ..." alt="QR Code">
             <p>امسحوا الكود وشاركونا كلماتكم!</p>
         </div>
     </div>
@@ -226,16 +228,17 @@
         const placeholder = document.getElementById('placeholder');
         const countElement = document.getElementById('count');
 
-        const wordColors = [
+        const messageColors = [
             '#1b5e20', '#2e7d32', '#388e3c', '#43a047', 
-            '#4caf50', '#66bb6a', '#81c784', '#2e5a1c'
+            '#4caf50', '#66bb6a', '#81c784', '#2e5a1c',
+            '#3d7426', '#4a8f3a', '#5cb85c', '#689f38'
         ];
 
-        function displayWordCloud(wordCounts) {
-            const oldWords = container.querySelectorAll('.word');
-            oldWords.forEach(w => w.remove());
+        function displayMessages(messages) {
+            const oldMessages = container.querySelectorAll('.message');
+            oldMessages.forEach(m => m.remove());
 
-            if (wordCounts.length === 0) {
+            if (messages.length === 0) {
                 placeholder.style.display = 'block';
                 return;
             }
@@ -247,67 +250,75 @@
             const centerX = containerWidth / 2;
             const centerY = containerHeight / 2;
 
-            wordCounts.sort((a, b) => b.count - a.count);
-            const displayWords = wordCounts.slice(0, 60);
-            const maxCount = displayWords[0]?.count || 1;
+            // Sort by length (shorter messages = can be larger)
+            messages.sort((a, b) => a.text.length - b.text.length);
+            
+            const displayMessages = messages.slice(-40); // Show last 40 messages
+            const placedMessages = [];
+            const rotations = [0, 0, 0, 15, -15, 30, -30, 90, -90];
 
-            const angles = [0, 0, 0, 90, -90, 45, -45];
-            const placedWords = [];
-
-            displayWords.forEach((wordObj, index) => {
-                const wordEl = document.createElement('div');
-                wordEl.className = 'word';
-                wordEl.textContent = wordObj.text;
+            displayMessages.forEach((msgObj, index) => {
+                const msgEl = document.createElement('div');
+                msgEl.className = 'message';
+                msgEl.textContent = msgObj.text;
                 
-                const minSize = 20;
-                const maxSize = 55;
-                const size = Math.round(minSize + ((wordObj.count / maxCount) * (maxSize - minSize)));
-                wordEl.style.fontSize = size + 'px';
-                wordEl.style.background = wordColors[index % wordColors.length];
+                // Font size based on message length (shorter = bigger)
+                const maxLength = 50;
+                const minSize = 16;
+                const maxSize = 36;
+                const size = Math.round(maxSize - ((msgObj.text.length / maxLength) * (maxSize - minSize)));
+                msgEl.style.fontSize = size + 'px';
                 
-                const rotation = angles[index % angles.length];
-                wordEl.style.setProperty('--rotation', rotation + 'deg');
+                // Color
+                msgEl.style.background = messageColors[index % messageColors.length];
+                
+                // Rotation
+                const rotation = rotations[index % rotations.length];
+                msgEl.style.setProperty('--rotation', rotation + 'deg');
                 
                 let placed = false;
                 let attempts = 0;
-                const maxAttempts = 100;
                 
-                while (!placed && attempts < maxAttempts) {
-                    const angle = (index * 47 + attempts * 17) * (Math.PI / 180);
-                    const radius = 80 + (attempts * 15);
+                while (!placed && attempts < 150) {
+                    const angle = (index * 53 + attempts * 19) * (Math.PI / 180);
+                    const radius = 100 + (attempts * 10);
                     
-                    const x = centerX + Math.cos(angle) * radius - (wordObj.text.length * size / 3);
-                    const y = centerY - 100 + Math.sin(angle) * radius * 1.3 - (size / 2);
+                    const x = centerX + Math.cos(angle) * radius - 100;
+                    const y = centerY - 120 + Math.sin(angle) * radius * 1.2 - 30;
                     
-                    const wordRect = {
+                    const msgRect = {
                         x: x,
                         y: y,
-                        width: wordObj.text.length * size * 0.7,
-                        height: size * 1.3
+                        width: msgObj.text.length * size * 0.5,
+                        height: size * 2
                     };
                     
-                    if (x > 100 && x < containerWidth - 150 && y > 80 && y < containerHeight - 80) {
+                    if (x > 80 && x < containerWidth - 180 && y > 60 && y < containerHeight - 60) {
                         let collision = false;
-                        for (const placedWord of placedWords) {
-                            const padding = 10;
-                            if (!(wordRect.x + wordRect.width + padding < placedWord.x ||
-                                  wordRect.x - padding > placedWord.x + placedWord.width ||
-                                  wordRect.y + wordRect.height + padding < placedWord.y ||
-                                  wordRect.y - padding > placedWord.y + placedWord.height)) {
+                        for (const placedMsg of placedMessages) {
+                            const padding = 15;
+                            if (!(msgRect.x + msgRect.width + padding < placedMsg.x ||
+                                  msgRect.x - padding > placedMsg.x + placedMsg.width ||
+                                  msgRect.y + msgRect.height + padding < placedMsg.y ||
+                                  msgRect.y - padding > placedMsg.y + placedMsg.height)) {
                                 collision = true;
                                 break;
                             }
                         }
                         
                         if (!collision) {
-                            wordEl.style.left = x + 'px';
-                            wordEl.style.top = y + 'px';
-                            wordEl.style.zIndex = (index + 1).toString();
-                            wordEl.style.animationDelay = (index * 0.05) + 's';
-                            wordEl.title = `${wordObj.text}: ${wordObj.count} مرات`;
+                            msgEl.style.left = x + 'px';
+                            msgEl.style.top = y + 'px';
+                            msgEl.style.zIndex = (index + 1).toString();
+                            msgEl.style.animationDelay = (index * 0.05) + 's';
                             
-                            container.appendChild(wordEl);
-                            placedWords.push(wordRect);
+                            if (msgObj.timestamp) {
+                                const date = new Date(msgObj.timestamp);
+                                msgEl.title = `${msgObj.text}\n${date.toLocaleTimeString('ar-JO')}`;
+                            }
+                            
+                            container.appendChild(msgEl);
+                            placedMessages.push(msgRect);
                             placed = true;
                         }
                     }
@@ -316,46 +327,34 @@
                 }
                 
                 if (!placed) {
-                    const fallbackX = 150 + (index % 5) * 140;
-                    const fallbackY = 100 + Math.floor(index / 5) * 100;
-                    wordEl.style.left = fallbackX + 'px';
-                    wordEl.style.top = fallbackY + 'px';
-                    container.appendChild(wordEl);
+                    const fallbackX = 100 + (index % 4) * 180;
+                    const fallbackY = 80 + Math.floor(index / 4) * 120;
+                    msgEl.style.left = fallbackX + 'px';
+                    msgEl.style.top = fallbackY + 'px';
+                    container.appendChild(msgEl);
                 }
             });
         }
 
-        function processSubmissions(data) {
-            const wordCount = {};
+        database.ref('submissions').on('value', (snapshot) => {
+            const data = snapshot.val();
+            const messages = [];
             let totalSubmissions = 0;
 
             if (data) {
                 Object.values(data).forEach(submission => {
                     if (submission && submission.text) {
-                        const words = submission.text.toLowerCase().split(/\s+/);
-                        words.forEach(word => {
-                            const cleanWord = word.replace(/[^\u0600-\u06FFa-zA-Z0-9]/g, '');
-                            if (cleanWord.length > 2) {
-                                wordCount[cleanWord] = (wordCount[cleanWord] || 0) + 1;
-                            }
+                        messages.push({
+                            text: submission.text.trim(),
+                            timestamp: submission.timestamp
                         });
                         totalSubmissions++;
                     }
                 });
             }
 
-            return {
-                wordList: Object.entries(wordCount).map(([text, count]) => ({ text, count })),
-                totalSubmissions
-            };
-        }
-
-        database.ref('submissions').on('value', (snapshot) => {
-            const data = snapshot.val();
-            const result = processSubmissions(data);
-            
-            countElement.textContent = result.totalSubmissions;
-            displayWordCloud(result.wordList);
+            countElement.textContent = totalSubmissions;
+            displayMessages(messages);
             
         }, (error) => {
             console.error('Error:', error);
